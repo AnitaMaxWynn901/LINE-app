@@ -5,10 +5,20 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
+const line = require('@line/bot-sdk');
 
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const lineConfig = {
+    channelSecret: process.env.LINE_CHANNEL_SECRET,
+    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+};
+
+const lineClient = new line.messagingApi.MessagingApiClient({
+    channelAccessToken: lineConfig.channelAccessToken,
+})
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -21,6 +31,77 @@ app.use(cors());
 app.use(express.json());
 
 // < ----- Routes ------ >
+app.post('/webhook', line.middleware(lineConfig), async (req, res) => { 
+    try {
+        const events = req.body.events;
+        await Promise.all(events.map(handleLineEvent));
+        res.status(200).end();
+    } catch (error) {
+        console.error('Webhook error', error);
+        res.status(500).end();
+    }
+});
+
+async function handleLineEvent(event){
+    console.log('LINE Event', event.type);
+
+    //Handle message events
+    if(event.type === 'message' && event.message.type === 'text'){
+        const userMessage = event.message.text;
+        const userId = event.source.userId;
+
+        console.log(`User ${userId} said ${userMessage}`);
+
+        const { data: users } = await supabase
+            .from('users')
+            .select('*')
+            .eq('line_uid', userId);
+
+        if(!users || users.length == 0){
+            return lineClient.replyMessage({
+                replyToken: event.replyToken,
+                messages: [{
+                    type: 'text',
+                    text: 'Welcome to Sushi Cafe'
+                }]
+            });
+        }
+
+        const user = users[0];
+
+        if(userMessage.includes('Order')){
+            return lineClient.replyMessage({
+                replyToken: event.replyToken,
+                messages: [{
+                    type: 'text',
+                    text: 'Order Received! Processing......'
+                }]
+            });
+        }
+
+        return lineClient.replyMessage({
+            replyToken: event.replyToken,
+            messages: [{
+                type: 'text',
+                text: `Hello ${user.display_name}!`
+            }]
+        });
+    }
+    if(event.type === 'follow'){
+        const userId = event.source.userId;
+        console.log(`New follower:  ${userId}`);
+
+        return lineClient.replyMessage({
+            replyToken: event.replyToken,
+            text: 'Thank you for adding Sushi Cafe!'
+        });
+    }
+
+    return Promise.resolve(null);
+
+}
+
+
 // Test endpoint
 app.get("/", (req, res) => {
   res.json({
