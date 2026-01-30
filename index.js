@@ -5,20 +5,27 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
-const line = require('@line/bot-sdk');
+const line = require("@line/bot-sdk");
+const {
+  getWelcomeCard,
+  getMenuCard,
+  getOrderConfirmation,
+} = require("./flexMessages");
 
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// LINE configuration
 const lineConfig = {
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
-    channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.LINE_CHANNEL_SECRET,
+  channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 };
 
+// Create LINE client
 const lineClient = new line.messagingApi.MessagingApiClient({
-    channelAccessToken: lineConfig.channelAccessToken,
-})
+  channelAccessToken: lineConfig.channelAccessToken,
+});
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -30,102 +37,142 @@ const supabase = createClient(
 app.use(cors());
 app.use(express.json());
 
-// < ----- Routes ------ >
-app.post('/webhook', line.middleware(lineConfig), async (req, res) => { 
-    try {
-        const events = req.body.events;
-        await Promise.all(events.map(handleLineEvent));
-        res.status(200).end();
-    } catch (error) {
-        console.error('Webhook error', error);
-        res.status(500).end();
-    }
+// Serve static files (for LIFF app later)
+app.use(express.static("public"));
+
+// ============================================
+// LINE WEBHOOK
+// ============================================
+
+app.post("/webhook", line.middleware(lineConfig), async (req, res) => {
+  try {
+    const events = req.body.events;
+    await Promise.all(events.map(handleLineEvent));
+    res.status(200).end();
+  } catch (error) {
+    console.error("❌ Webhook error:", error);
+    res.status(500).end();
+  }
 });
 
-async function handleLineEvent(event){
-    console.log('LINE Event', event.type);
+async function handleLineEvent(event) {
+  console.log("📨 LINE Event:", event.type);
 
-    //Handle message events
-    if(event.type === 'message' && event.message.type === 'text'){
-        const userMessage = event.message.text;
-        const userId = event.source.userId;
+  // Handle FOLLOW event (when user adds bot as friend)
+  if (event.type === "follow") {
+    const userId = event.source.userId;
+    console.log(`✅ New follower: ${userId}`);
 
-        console.log(`User ${userId} said ${userMessage}`);
+    // EVERYONE gets welcome card when they first add the bot
+    return lineClient.replyMessage({
+      replyToken: event.replyToken,
+      messages: [getWelcomeCard()],
+    });
+  }
 
-        const { data: users } = await supabase
-            .from('users')
-            .select('*')
-            .eq('line_uid', userId);
+  // Handle MESSAGE events
+  if (event.type === "message" && event.message.type === "text") {
+    const userMessage = event.message.text;
+    const userId = event.source.userId;
 
-        if(!users || users.length == 0){
-            return lineClient.replyMessage({
-                replyToken: event.replyToken,
-                messages: [{
-                    type: 'text',
-                    text: 'Welcome to Sushi Cafe'
-                }]
-            });
-        }
+    console.log(`👤 User ${userId} said: ${userMessage}`);
 
+    // Check if user is registered
+    const { data: users } = await supabase
+      .from("users")
+      .select("*")
+      .eq("line_uid", userId);
+
+    const isRegistered = users && users.length > 0;
+
+    // Handle different message types
+    if (
+      userMessage.toLowerCase().includes("menu") ||
+      userMessage.toLowerCase().includes("order") ||
+      userMessage.toLowerCase().includes("start")
+    ) {
+      if (isRegistered) {
+        // Registered user - show personalized menu card
         const user = users[0];
 
-        if(userMessage.includes('Order')){
-            return lineClient.replyMessage({
-                replyToken: event.replyToken,
-                messages: [{
-                    type: 'text',
-                    text: 'Order Received! Processing......'
-                }]
-            });
-        }
-
         return lineClient.replyMessage({
-            replyToken: event.replyToken,
-            messages: [{
-                type: 'text',
-                text: `Hello ${user.display_name}!`
-            }]
+          replyToken: event.replyToken,
+          messages: [getMenuCard(user.display_name, user.points)],
         });
-    }
-    if(event.type === 'follow'){
-        const userId = event.source.userId;
-        console.log(`New follower:  ${userId}`);
-
+      } else {
+        // Not registered - show welcome card with register button
         return lineClient.replyMessage({
-            replyToken: event.replyToken,
-            text: 'Thank you for adding Sushi Cafe!'
+          replyToken: event.replyToken,
+          messages: [getWelcomeCard()],
         });
+      }
     }
 
-    return Promise.resolve(null);
+    // Handle order confirmation messages (from LIFF app)
+    if (userMessage.includes("🍣 ORDER")) {
+      console.log("📦 Order message detected");
 
+      // Extract order details (we'll improve this later)
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "text",
+            text: "✅ Order received! Processing your order...",
+          },
+        ],
+      });
+    }
+
+    // Default response - show welcome card to everyone
+    if (isRegistered) {
+      const user = users[0];
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "text",
+            text: `Hello ${user.display_name}! 👋\n\nYou have ${user.points} points! 💎\n\nType "menu" to order more delicious sushi! 🍣`,
+          },
+        ],
+      });
+    } else {
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [getWelcomeCard()],
+      });
+    }
+  }
+
+  return Promise.resolve(null);
 }
 
+// ============================================
+// REST API ENDPOINTS
+// ============================================
 
 // Test endpoint
 app.get("/", (req, res) => {
   res.json({
-    message: "LINE Shop Registeration API is running",
+    message: "🍣 Sushi Cafe API is running",
     status: "healthy",
     timestamp: new Date().toISOString(),
   });
 });
 
-// Registeration endpoint
+// Registration endpoint
 app.post("/api/register", async (req, res) => {
   try {
-    // Get the data from LINE app
     const { lineUid, displayName, phoneNumber, email } = req.body;
 
-    // Required Field
+    // Validation
     if (!lineUid || !displayName || !phoneNumber) {
-      return res.json({
+      return res.status(400).json({
         success: false,
         message: "LINE ID, display name and phone number are required.",
       });
     }
 
-    //Check phone_number format
     if (phoneNumber.length < 10) {
       return res.status(400).json({
         success: false,
@@ -133,11 +180,11 @@ app.post("/api/register", async (req, res) => {
       });
     }
 
-    //Check if the user is already registered
+    // Check if user already registered
     const { data: existingUsers } = await supabase
       .from("users")
       .select("*")
-      .eq("line_uid", lineUid)
+      .eq("line_uid", lineUid);
 
     if (existingUsers && existingUsers.length > 0) {
       return res.status(400).json({
@@ -146,20 +193,20 @@ app.post("/api/register", async (req, res) => {
       });
     }
 
-    //Check if the phone_number is already used
+    // Check if phone number already used
     const { data: existingPhone } = await supabase
       .from("users")
       .select("*")
-      .eq("phone_number", phoneNumber)
+      .eq("phone_number", phoneNumber);
 
-    if (existingPhone) {
+    if (existingPhone && existingPhone.length > 0) {
       return res.status(400).json({
         success: false,
         message: "This phone number is already used.",
       });
     }
 
-    //Register new user
+    // Register new user
     const { data: newUser, error: insertError } = await supabase
       .from("users")
       .insert([
@@ -179,11 +226,11 @@ app.post("/api/register", async (req, res) => {
       throw insertError;
     }
 
-    console.log("New user registered: ", newUser.line_uid);
+    console.log("✅ New user registered:", newUser.line_uid);
 
     res.status(201).json({
       success: true,
-      message: "Registeration Successful!",
+      message: "🎉 Registration Successful!",
       data: {
         lineUid: newUser.line_uid,
         displayName: newUser.display_name,
@@ -192,27 +239,26 @@ app.post("/api/register", async (req, res) => {
       },
     });
   } catch (error) {
-    console.log("Registeration error: ", error);
+    console.error("❌ Registration error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error during registeration",
+      message: "Server error during registration",
       error: error.message,
     });
   }
 });
 
-// Get the user role endpoint
+// Get user info
 app.get("/api/user/:lineUid", async (req, res) => {
   try {
     const { lineUid } = req.params;
 
     console.log("🔍 Looking for user:", lineUid);
 
-    // Get user data WITHOUT .single()
     const { data: users, error } = await supabase
       .from("users")
       .select("*")
-      .eq("line_uid", lineUid); // ← No .single()!
+      .eq("line_uid", lineUid);
 
     console.log("📊 Found:", users?.length || 0, "users");
 
@@ -232,7 +278,7 @@ app.get("/api/user/:lineUid", async (req, res) => {
       });
     }
 
-    const userData = users[0]; // ✅ Get first result from array
+    const userData = users[0];
 
     // Role-based response
     if (userData.user_role === "admin") {
@@ -279,15 +325,11 @@ app.get("/api/user/:lineUid", async (req, res) => {
   }
 });
 
-// ==============
-//  Order Management
-// ==============
-
+// Create order
 app.post("/api/orders", async (req, res) => {
   try {
     const { lineUid, orderDetails, totalAmount } = req.body;
 
-    //Validation
     if (!lineUid || !orderDetails || !totalAmount) {
       return res.status(400).json({
         success: false,
@@ -295,24 +337,25 @@ app.post("/api/orders", async (req, res) => {
       });
     }
 
-    //Check if user exists
-    const { data: user, error: userError } = await supabase
+    // Check if user exists
+    const { data: users } = await supabase
       .from("users")
       .select("*")
-      .eq("line_uid", lineUid)
-      .single();
+      .eq("line_uid", lineUid);
 
-    if (!user || userError) {
+    if (!users || users.length === 0) {
       return res.status(404).json({
         success: false,
         message: "User not found! Please register first",
       });
     }
 
-    //Calculate points ($10 = 1 point)
-    const pointEarned = Math.floor(totalAmount / 10);
+    const user = users[0];
 
-    //Create orders
+    // Calculate points ($10 = 1 point)
+    const pointsEarned = Math.floor(totalAmount / 10);
+
+    // Create order
     const { data: newOrder, error: orderError } = await supabase
       .from("orders")
       .insert([
@@ -320,18 +363,19 @@ app.post("/api/orders", async (req, res) => {
           line_uid: lineUid,
           order_details: orderDetails,
           total_amount: totalAmount,
-          points_earned: pointEarned,
+          points_earned: pointsEarned,
           order_status: "pending",
         },
       ])
       .select()
       .single();
+
     if (orderError) {
       throw orderError;
     }
 
-    //Update user's Total points
-    const newTotalPoints = user.points + pointEarned;
+    // Update user's total points
+    const newTotalPoints = user.points + pointsEarned;
 
     const { error: updateError } = await supabase
       .from("users")
@@ -342,22 +386,24 @@ app.post("/api/orders", async (req, res) => {
       throw updateError;
     }
 
-    console.log(`Order created: ${newOrder.order_id} for ${user.display_name}`);
+    console.log(
+      `✅ Order created: Order #${newOrder.order_id} for ${user.display_name}`
+    );
 
     res.status(201).json({
       success: true,
-      message: "Order placed successfully!!",
+      message: "✅ Order placed successfully!",
       data: {
         orderId: newOrder.order_id,
         orderDetails: newOrder.order_details,
         totalAmount: newOrder.total_amount,
-        pointsEarned: pointEarned,
+        pointsEarned: pointsEarned,
         newTotalPoints: newTotalPoints,
         orderStatus: newOrder.order_status,
       },
     });
   } catch (error) {
-    console.error("Order creation error: ", error);
+    console.error("❌ Order creation error:", error);
     res.status(500).json({
       success: false,
       message: "Server error while creating order",
@@ -366,12 +412,11 @@ app.post("/api/orders", async (req, res) => {
   }
 });
 
-//Get user's order history
+// Get user's order history
 app.get("/api/orders/user/:lineUid", async (req, res) => {
   try {
     const { lineUid } = req.params;
 
-    //Get all the orders from users
     const { data: orders, error } = await supabase
       .from("orders")
       .select("*")
@@ -388,7 +433,7 @@ app.get("/api/orders/user/:lineUid", async (req, res) => {
       data: orders,
     });
   } catch (error) {
-    console.error("Get orders error: ", error);
+    console.error("❌ Get orders error:", error);
     res.status(500).json({
       success: false,
       message: "Server Error",
@@ -408,7 +453,7 @@ app.put("/api/orders/:orderId/status", async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "Invalid stauts. Must be pending, confirmed, completed or cancelled",
+          "Invalid status. Must be pending, confirmed, completed or cancelled",
       });
     }
 
@@ -416,20 +461,23 @@ app.put("/api/orders/:orderId/status", async (req, res) => {
       .from("orders")
       .update({ order_status: status })
       .eq("order_id", orderId)
+      .select()
       .single();
 
     if (error) {
       throw error;
     }
 
+    console.log(`✅ Order #${orderId} status updated to: ${status}`);
+
     res.json({
       success: true,
       message: `Order status updated to ${status}`,
       data: updatedOrder,
     });
-    console.log(`Order ${orderId} status updated to ${status}`);
   } catch (error) {
-    return res.status(500).json({
+    console.error("❌ Update order status error:", error);
+    res.status(500).json({
       success: false,
       message: "Server Error",
       error: error.message,
@@ -437,26 +485,24 @@ app.put("/api/orders/:orderId/status", async (req, res) => {
   }
 });
 
-// ========
-// Dashboard & Analytics
-// ========
+// Get user dashboard
 app.get("/api/dashboard/user/:lineUid", async (req, res) => {
   try {
     const { lineUid } = req.params;
 
-    //Get user info
-    const { data: user, error: userError } = await supabase
+    const { data: users } = await supabase
       .from("users")
       .select("*")
-      .eq("line_uid", lineUid)
-      .single();
+      .eq("line_uid", lineUid);
 
-    if (!user || userError) {
+    if (!users || users.length === 0) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
+
+    const user = users[0];
 
     const { data: orders, error: ordersError } = await supabase
       .from("orders")
@@ -468,7 +514,6 @@ app.get("/api/dashboard/user/:lineUid", async (req, res) => {
       throw ordersError;
     }
 
-    //Calculate statistics
     const totalOrders = orders.length;
     const completedOrders = orders.filter(
       (o) => o.order_status === "completed"
@@ -477,7 +522,7 @@ app.get("/api/dashboard/user/:lineUid", async (req, res) => {
       (sum, order) => sum + parseFloat(order.total_amount),
       0
     );
-    const recentOrders = orders.slice(0, 5); // Last 5 orders
+    const recentOrders = orders.slice(0, 5);
 
     res.json({
       success: true,
@@ -498,19 +543,18 @@ app.get("/api/dashboard/user/:lineUid", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error(`Get user dashboard error`, error);
+    console.error("❌ Get user dashboard error:", error);
     res.status(500).json({
       success: false,
-      message: "Server message",
+      message: "Server error",
       error: error.message,
     });
   }
 });
 
-//Get shop master dashboard
+// Get shop master dashboard
 app.get("/api/dashboard/shop", async (req, res) => {
   try {
-    //Get all the orders
     const { data: allOrders, error: ordersError } = await supabase
       .from("orders")
       .select("*");
@@ -526,7 +570,7 @@ app.get("/api/dashboard/shop", async (req, res) => {
     if (usersError) {
       throw usersError;
     }
-    // Calculate statistics
+
     const totalOrders = allOrders.length;
     const pendingOrders = allOrders.filter(
       (o) => o.order_status === "pending"
@@ -541,7 +585,6 @@ app.get("/api/dashboard/shop", async (req, res) => {
       (u) => u.user_role === "user"
     ).length;
 
-    //Get today's orders
     const today = new Date().toISOString().split("T")[0];
     const todayOrders = allOrders.filter((o) => o.order_date.startsWith(today));
 
@@ -550,7 +593,6 @@ app.get("/api/dashboard/shop", async (req, res) => {
       0
     );
 
-    // Get recent orders
     const recentOrders = allOrders
       .sort((a, b) => new Date(b.order_date) - new Date(a.order_date))
       .slice(0, 10);
@@ -571,7 +613,7 @@ app.get("/api/dashboard/shop", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get shop dashboard error: ", error);
+    console.error("❌ Get shop dashboard error:", error);
     res.status(500).json({
       success: false,
       message: "Server error",
@@ -580,16 +622,12 @@ app.get("/api/dashboard/shop", async (req, res) => {
   }
 });
 
-// Get admin dashboard (same as shop master for now)
+// Get admin dashboard
 app.get("/api/dashboard/admin", async (req, res) => {
   try {
-    // Get all orders
     const { data: allOrders } = await supabase.from("orders").select("*");
-
-    // Get all users
     const { data: allUsers } = await supabase.from("users").select("*");
 
-    // Statistics by role
     const usersByRole = {
       users: allUsers.filter((u) => u.user_role === "user").length,
       shopMasters: allUsers.filter((u) => u.user_role === "shop_master").length,
@@ -624,7 +662,11 @@ app.get("/api/dashboard/admin", async (req, res) => {
   }
 });
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Connected to Supabase`);
+  console.log("🚀 ========================================");
+  console.log(`   Server running on http://localhost:${PORT}`);
+  console.log("   🍣 Sushi Cafe API");
+  console.log("   📊 Connected to Supabase");
+  console.log("🚀 ========================================");
 });
