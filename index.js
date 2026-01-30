@@ -33,15 +33,8 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Serve static files (for LIFF app later)
-app.use(express.static("public"));
-
 // ============================================
-// LINE WEBHOOK
+// LINE WEBHOOK (MUST come BEFORE express.json())
 // ============================================
 
 app.post("/webhook", line.middleware(lineConfig), async (req, res) => {
@@ -55,6 +48,17 @@ app.post("/webhook", line.middleware(lineConfig), async (req, res) => {
   }
 });
 
+// Middleware
+app.use(express.json());
+app.use(cors());
+
+// Serve static files (for LIFF app later)
+app.use(express.static("public"));
+
+// ============================================
+// LINE EVENT HANDLER
+// ============================================
+
 async function handleLineEvent(event) {
   console.log("📨 LINE Event:", event.type);
 
@@ -63,7 +67,6 @@ async function handleLineEvent(event) {
     const userId = event.source.userId;
     console.log(`✅ New follower: ${userId}`);
 
-    // EVERYONE gets welcome card when they first add the bot
     return lineClient.replyMessage({
       replyToken: event.replyToken,
       messages: [getWelcomeCard()],
@@ -73,6 +76,7 @@ async function handleLineEvent(event) {
   // Handle MESSAGE events
   if (event.type === "message" && event.message.type === "text") {
     const userMessage = event.message.text;
+    const text = userMessage.toLowerCase().trim();
     const userId = event.source.userId;
 
     console.log(`👤 User ${userId} said: ${userMessage}`);
@@ -85,22 +89,27 @@ async function handleLineEvent(event) {
 
     const isRegistered = users && users.length > 0;
 
-    // Handle different message types
-    if (
-      userMessage.toLowerCase().includes("menu") ||
-      userMessage.toLowerCase().includes("order") ||
-      userMessage.toLowerCase().includes("start")
-    ) {
-      if (isRegistered) {
-        // Registered user - show personalized menu card
-        const user = users[0];
+    // ============================================
+    // 1️⃣ Greetings → Always show Welcome Card
+    // ============================================
+    if (["hello", "hi", "hey", "start"].includes(text)) {
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [getWelcomeCard()],
+      });
+    }
 
+    // ============================================
+    // 2️⃣ Menu / Order keywords
+    // ============================================
+    if (text.includes("menu") || text.includes("order")) {
+      if (isRegistered) {
+        const user = users[0];
         return lineClient.replyMessage({
           replyToken: event.replyToken,
           messages: [getMenuCard(user.display_name, user.points)],
         });
       } else {
-        // Not registered - show welcome card with register button
         return lineClient.replyMessage({
           replyToken: event.replyToken,
           messages: [getWelcomeCard()],
@@ -108,11 +117,12 @@ async function handleLineEvent(event) {
       }
     }
 
-    // Handle order confirmation messages (from LIFF app)
+    // ============================================
+    // 3️⃣ Order confirmation messages (from LIFF app)
+    // ============================================
     if (userMessage.includes("🍣 ORDER")) {
       console.log("📦 Order message detected");
 
-      // Extract order details (we'll improve this later)
       return lineClient.replyMessage({
         replyToken: event.replyToken,
         messages: [
@@ -124,7 +134,9 @@ async function handleLineEvent(event) {
       });
     }
 
-    // Default response - show welcome card to everyone
+    // ============================================
+    // 4️⃣ Default response
+    // ============================================
     if (isRegistered) {
       const user = users[0];
       return lineClient.replyMessage({
