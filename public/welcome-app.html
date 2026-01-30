@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sushi Cafe</title>
+
+    <!-- LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .user-info {
+            padding: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid #667eea;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-details h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .user-details p {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .points-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        /* Registration Form */
+        .registration-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .registration-card h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .registration-card p {
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            margin-bottom: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            margin-top: 10px;
+        }
+
+        /* Menu Items */
+        .menu-item {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .menu-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .item-details h3 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .item-details p {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .price {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .item-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .qty-btn {
+            width: 35px;
+            height: 35px;
+            border: none;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .qty-btn:hover {
+            background: #764ba2;
+        }
+
+        .quantity {
+            font-size: 18px;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* Cart Summary */
+        .cart-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .cart-summary h4 {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .cart-total {
+            display: flex;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: bold;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .points-info {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍣 Sushi Cafe</h1>
+            <p>Fresh sushi, delivered with love</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+
+        <div id="userInfo" class="user-info hidden"></div>
+
+        <div class="content">
+            <!-- Registration Card -->
+            <div id="registrationCard" class="registration-card hidden">
+                <h3>📝 Register to Order</h3>
+                <p>Join us to start earning points and enjoying delicious sushi!</p>
+                <input type="tel" id="phone" placeholder="Phone Number *" class="input-field">
+                <input type="email" id="email" placeholder="Email (optional)" class="input-field">
+                <button class="btn btn-primary" onclick="registerMember()">Register Now</button>
+            </div>
+
+            <!-- Menu Section -->
+            <div id="menuSection" class="hidden">
+                <!-- Salmon -->
+                <div class="menu-item">
+                    <div class="item-details">
+                        <h3>🍣 Salmon Sushi</h3>
+                        <p>Fresh Norwegian salmon</p>
+                        <div class="price">$12</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="qty-btn" onclick="updateQuantity('salmon', -1)">−</button>
+                        <span class="quantity" id="qty-salmon">0</span>
+                        <button class="qty-btn" onclick="updateQuantity('salmon', 1)">+</button>
+                    </div>
+                </div>
+
+                <!-- Tuna -->
+                <div class="menu-item">
+                    <div class="item-details">
+                        <h3>🍣 Tuna Sushi</h3>
+                        <p>Premium bluefin tuna</p>
+                        <div class="price">$15</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="qty-btn" onclick="updateQuantity('tuna', -1)">−</button>
+                        <span class="quantity" id="qty-tuna">0</span>
+                        <button class="qty-btn" onclick="updateQuantity('tuna', 1)">+</button>
+                    </div>
+                </div>
+
+                <!-- Unagi -->
+                <div class="menu-item">
+                    <div class="item-details">
+                        <h3>🍣 Unagi Sushi</h3>
+                        <p>Grilled freshwater eel</p>
+                        <div class="price">$18</div>
+                    </div>
+                    <div class="item-actions">
+                        <button class="qty-btn" onclick="updateQuantity('unagi', -1)">−</button>
+                        <span class="quantity" id="qty-unagi">0</span>
+                        <button class="qty-btn" onclick="updateQuantity('unagi', 1)">+</button>
+                    </div>
+                </div>
+
+                <!-- Cart Summary -->
+                <div id="cartSummary" class="cart-summary hidden">
+                    <h4>🛒 Your Cart</h4>
+                    <div id="cartItems"></div>
+                    <div class="cart-total">
+                        <span>Total:</span>
+                        <span id="cartTotal">$0</span>
+                    </div>
+                    <div class="points-info" id="pointsInfo">
+                        🌟 You'll earn <strong><span id="pointsEarned">0</span> points</strong>!
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" style="margin-top: 20px;" onclick="placeOrder()">Place Order</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const LIFF_ID = '2008995030-W39gBpe4';
+        const API_URL = 'https://line-app-94vb.onrender.com';
+
+        // Menu items (hardcoded)
+        const menuItems = {
+            salmon: { name: 'Salmon Sushi', price: 12 },
+            tuna: { name: 'Tuna Sushi', price: 15 },
+            unagi: { name: 'Unagi Sushi', price: 18 }
+        };
+
+        // Cart
+        let cart = {};
+        let userProfile = null;
+        let userData = null;
+
+        // Initialize LIFF
+        async function initializeLIFF() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                userProfile = await liff.getProfile();
+                console.log('User profile:', userProfile);
+
+                // Check if user is registered
+                await checkRegistration();
+
+            } catch (error) {
+                console.error('LIFF error:', error);
+                document.getElementById('loading').innerHTML = `
+          <p style="color: red;">Error: ${error.message}</p>
+        `;
+            }
+        }
+
+        // Check if user is registered
+        async function checkRegistration() {
+            try {
+                const response = await fetch(`${API_URL}/api/user/${userProfile.userId}`);
+
+                if (response.ok) {
+                    // User is registered
+                    userData = await response.json();
+                    showMenu();
+                } else {
+                    // User not registered
+                    showRegistrationForm();
+                }
+            } catch (error) {
+                console.error('Check registration error:', error);
+                showRegistrationForm();
+            }
+        }
+
+        // Show registration form
+        function showRegistrationForm() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('userInfo').innerHTML = `
+        <img src="${userProfile.pictureUrl}" alt="Profile">
+        <div class="user-details">
+          <h3>${userProfile.displayName}</h3>
+          <p>Welcome! Please register to continue</p>
+        </div>
+      `;
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('registrationCard').classList.remove('hidden');
+        }
+
+        // Show menu
+        function showMenu() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('userInfo').innerHTML = `
+        <img src="${userProfile.pictureUrl}" alt="Profile">
+        <div class="user-details">
+          <h3>${userData.displayName}</h3>
+          <p>Member since ${new Date(userData.registeredAt).toLocaleDateString()}</p>
+        </div>
+        <div class="points-badge">
+          💎 ${userData.points} pts
+        </div>
+      `;
+            document.getElementById('userInfo').classList.remove('hidden');
+            document.getElementById('menuSection').classList.remove('hidden');
+        }
+
+        // Register member
+        async function registerMember() {
+            const phone = document.getElementById('phone').value.trim();
+            const email = document.getElementById('email').value.trim();
+
+            if (!phone) {
+                alert('❌ Please enter your phone number');
+                return;
+            }
+
+            if (phone.length < 10) {
+                alert('❌ Please enter a valid phone number (at least 10 digits)');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lineUid: userProfile.userId,
+                        displayName: userProfile.displayName,
+                        phoneNumber: phone,
+                        email: email || null
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('🎉 Registration successful! Welcome to Sushi Cafe!');
+                    userData = result.data;
+                    document.getElementById('registrationCard').classList.add('hidden');
+                    showMenu();
+                } else {
+                    alert(`❌ ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert('❌ Something went wrong. Please try again.');
+            }
+        }
+
+        // Update quantity
+        function updateQuantity(itemId, change) {
+            if (!cart[itemId]) {
+                cart[itemId] = 0;
+            }
+
+            cart[itemId] += change;
+
+            if (cart[itemId] < 0) {
+                cart[itemId] = 0;
+            }
+
+            if (cart[itemId] === 0) {
+                delete cart[itemId];
+            }
+
+            updateCartDisplay();
+        }
+
+        // Update cart display
+        function updateCartDisplay() {
+            // Update quantity displays
+            Object.keys(menuItems).forEach(itemId => {
+                document.getElementById(`qty-${itemId}`).textContent = cart[itemId] || 0;
+            });
+
+            // Calculate total
+            let total = 0;
+            let itemCount = 0;
+
+            Object.keys(cart).forEach(itemId => {
+                const quantity = cart[itemId];
+                const price = menuItems[itemId].price;
+                total += quantity * price;
+                itemCount += quantity;
+            });
+
+            // Show/hide cart summary
+            const cartSummary = document.getElementById('cartSummary');
+            if (itemCount > 0) {
+                cartSummary.classList.remove('hidden');
+
+                // Build cart items HTML
+                let cartHTML = '';
+                Object.keys(cart).forEach(itemId => {
+                    const quantity = cart[itemId];
+                    const item = menuItems[itemId];
+                    const subtotal = quantity * item.price;
+
+                    cartHTML += `
+            <div class="cart-item">
+              <span>${quantity}x ${item.name}</span>
+              <span>$${subtotal}</span>
+            </div>
+          `;
+                });
+
+                document.getElementById('cartItems').innerHTML = cartHTML;
+                document.getElementById('cartTotal').textContent = `$${total}`;
+
+                // Calculate points
+                const pointsEarned = Math.floor(total / 10);
+                document.getElementById('pointsEarned').textContent = pointsEarned;
+            } else {
+                cartSummary.classList.add('hidden');
+            }
+        }
+
+        // Place order
+        async function placeOrder() {
+            const itemCount = Object.keys(cart).reduce((sum, itemId) => sum + cart[itemId], 0);
+
+            if (itemCount === 0) {
+                alert('🛒 Your cart is empty! Please add items first.');
+                return;
+            }
+
+            // Build order details
+            let orderDetails = '';
+            let total = 0;
+
+            Object.keys(cart).forEach(itemId => {
+                const quantity = cart[itemId];
+                const item = menuItems[itemId];
+                const subtotal = quantity * item.price;
+                total += subtotal;
+
+                if (orderDetails) orderDetails += ', ';
+                orderDetails += `${quantity}x ${item.name}`;
+            });
+
+            try {
+                // Create order in database
+                const response = await fetch(`${API_URL}/api/orders`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lineUid: userProfile.userId,
+                        orderDetails: orderDetails,
+                        totalAmount: total
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`✅ Order placed successfully!\n\n💰 Total: $${total}\n🎉 Points earned: +${result.data.pointsEarned}\n💎 New total: ${result.data.newTotalPoints} pts`);
+
+                    // Update user points display
+                    userData.points = result.data.newTotalPoints;
+                    document.querySelector('.points-badge').textContent = `💎 ${userData.points} pts`;
+
+                    // Clear cart
+                    cart = {};
+                    updateCartDisplay();
+
+                    // Close LIFF
+                    setTimeout(() => {
+                        liff.closeWindow();
+                    }, 2000);
+                } else {
+                    alert(`❌ ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Order error:', error);
+                alert('❌ Failed to place order. Please try again.');
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initializeLIFF);
+    </script>
+</body>
+
+</html>
