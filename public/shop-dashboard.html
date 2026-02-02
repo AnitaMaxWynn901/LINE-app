@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shop Master Dashboard</title>
-    
-    <!-- LIFF SDK -->
+
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    
+
     <style>
         * {
             margin: 0;
@@ -26,17 +26,6 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        .header p {
-            font-size: 14px;
-            opacity: 0.9;
         }
 
         .stats-grid {
@@ -50,13 +39,12 @@
             background: white;
             border-radius: 15px;
             padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .stat-card h3 {
             font-size: 14px;
             color: #666;
-            margin-bottom: 8px;
         }
 
         .stat-card .value {
@@ -73,7 +61,6 @@
             font-size: 18px;
             font-weight: bold;
             margin-bottom: 15px;
-            color: #333;
         }
 
         .tabs {
@@ -88,10 +75,8 @@
             border: none;
             background: white;
             border-radius: 10px;
-            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
         }
 
         .tab.active {
@@ -104,29 +89,25 @@
             border-radius: 15px;
             padding: 15px;
             margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .order-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 12px;
             border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
         }
 
         .order-id {
-            font-size: 16px;
             font-weight: bold;
-            color: #333;
         }
 
         .order-status {
-            padding: 5px 12px;
-            border-radius: 20px;
             font-size: 12px;
-            font-weight: bold;
+            padding: 4px 10px;
+            border-radius: 20px;
         }
 
         .status-pending {
@@ -139,42 +120,27 @@
             color: #155724;
         }
 
-        .order-info {
-            margin-bottom: 12px;
-        }
-
         .order-row {
             display: flex;
             justify-content: space-between;
-            padding: 5px 0;
             font-size: 14px;
+            margin-bottom: 6px;
         }
 
         .label {
             color: #666;
+            min-width: 120px;
         }
 
         .value {
-            color: #333;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .order-details {
             background: #f8f9fa;
             padding: 10px;
             border-radius: 8px;
-            margin-bottom: 12px;
-        }
-
-        .order-details strong {
-            color: #667eea;
-            font-size: 14px;
-        }
-
-        .order-details p {
-            margin-top: 5px;
-            font-size: 14px;
-            color: #333;
+            margin: 10px 0;
         }
 
         .btn {
@@ -182,20 +148,13 @@
             padding: 12px;
             border: none;
             border-radius: 10px;
-            font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.2s;
         }
 
         .btn-complete {
             background: #28a745;
             color: white;
-        }
-
-        .btn-complete:active {
-            transform: scale(0.98);
-            background: #218838;
         }
 
         .btn-completed {
@@ -204,82 +163,50 @@
             cursor: not-allowed;
         }
 
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
         .hidden {
             display: none;
         }
 
-        .empty-state {
+        .loading {
             text-align: center;
-            padding: 40px 20px;
-            color: #999;
-        }
-
-        .empty-state p {
-            font-size: 16px;
-            margin-top: 10px;
+            padding: 40px;
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <h1>👨‍🍳 Shop Master Dashboard</h1>
-        <p id="shopName">Sushi Cafe</p>
+        <p>Sushi Cafe</p>
     </div>
 
-    <div id="loading" class="loading">
-        <div class="spinner"></div>
-        <p>Loading dashboard...</p>
-    </div>
+    <div id="loading" class="loading">Loading dashboard...</div>
 
     <div id="dashboard" class="hidden">
-        <!-- Statistics -->
         <div class="stats-grid">
             <div class="stat-card">
                 <h3>Pending Orders</h3>
-                <div class="value" id="statPending">0</div>
+                <div id="statPending" class="value">0</div>
             </div>
             <div class="stat-card">
                 <h3>Completed Today</h3>
-                <div class="value" id="statCompleted">0</div>
+                <div id="statCompleted" class="value">0</div>
             </div>
             <div class="stat-card">
                 <h3>Total Revenue</h3>
-                <div class="value" id="statRevenue">$0</div>
+                <div id="statRevenue" class="value">$0</div>
             </div>
             <div class="stat-card">
                 <h3>Total Customers</h3>
-                <div class="value" id="statCustomers">0</div>
+                <div id="statCustomers" class="value">0</div>
             </div>
         </div>
 
-        <!-- Orders Section -->
         <div class="section">
             <h2 class="section-title">📦 Orders</h2>
-            
             <div class="tabs">
-                <button class="tab active" onclick="switchTab('pending')">Pending</button>
-                <button class="tab" onclick="switchTab('all')">All Orders</button>
+                <button class="tab active" onclick="switchTab('pending', event)">Pending</button>
+                <button class="tab" onclick="switchTab('all', event)">All Orders</button>
             </div>
 
             <div id="pendingOrders"></div>
@@ -288,205 +215,108 @@
     </div>
 
     <script>
-        const LIFF_ID = '2008995030-d47ws6I6'; 
+        const LIFF_ID = '2008995030-d47ws6I6';
         const API_URL = 'https://line-app-94vb.onrender.com';
-        
+
         let currentTab = 'pending';
-        let dashboardData = null;
         let allOrders = [];
 
-        // Initialize LIFF
         async function initializeLIFF() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) return liff.login();
 
-                const profile = await liff.getProfile();
-                console.log('Shop master:', profile);
+            const profile = await liff.getProfile();
+            const userRes = await fetch(`${API_URL}/api/user/${profile.userId}`);
+            const user = await userRes.json();
 
-                // Check if user is shop_master
-                const userCheck = await fetch(`${API_URL}/api/user/${profile.userId}`);
-                const userData = await userCheck.json();
-
-                if (userData.userRole !== 'shop_master' && userData.userRole !== 'admin') {
-                    alert('❌ Access denied! Only shop masters can access this page.');
-                    liff.closeWindow();
-                    return;
-                }
-
-                // Load dashboard
-                await loadDashboard();
-                
-            } catch (error) {
-                console.error('LIFF error:', error);
-                document.getElementById('loading').innerHTML = `
-                    <p style="color: red;">Error: ${error.message}</p>
-                `;
+            if (user.userRole !== 'shop_master' && user.userRole !== 'admin') {
+                alert('Access denied');
+                return liff.closeWindow();
             }
+
+            loadDashboard();
         }
 
-        // Load dashboard data
         async function loadDashboard() {
-            try {
-                const response = await fetch(`${API_URL}/api/dashboard/shop`);
-                const result = await response.json();
+            const res = await fetch(`${API_URL}/api/dashboard/shop`);
+            const result = await res.json();
 
-                if (result.success) {
-                    dashboardData = result.data;
-                    allOrders = dashboardData.recentOrders || [];
-                    
-                    updateStatistics();
-                    displayOrders();
-                    
-                    document.getElementById('loading').classList.add('hidden');
-                    document.getElementById('dashboard').classList.remove('hidden');
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                console.error('Load dashboard error:', error);
-                alert('❌ Failed to load dashboard');
-            }
+            allOrders = result.data.recentOrders;
+
+            document.getElementById('statPending').textContent = result.data.statistics.pendingOrders;
+            document.getElementById('statCompleted').textContent = result.data.statistics.todayOrders;
+            document.getElementById('statRevenue').textContent = '$' + result.data.statistics.totalRevenue;
+            document.getElementById('statCustomers').textContent = result.data.statistics.totalCustomers;
+
+            displayOrders();
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
         }
 
-        // Update statistics
-        function updateStatistics() {
-            const stats = dashboardData.statistics;
-            
-            document.getElementById('statPending').textContent = stats.pendingOrders;
-            document.getElementById('statCompleted').textContent = stats.todayOrders;
-            document.getElementById('statRevenue').textContent = `$${stats.totalRevenue}`;
-            document.getElementById('statCustomers').textContent = stats.totalCustomers;
-        }
-
-        // Display orders
         function displayOrders() {
-            if (currentTab === 'pending') {
-                const pendingOrders = allOrders.filter(o => o.order_status === 'pending');
-                displayOrderList(pendingOrders, 'pendingOrders');
-            } else {
-                displayOrderList(allOrders, 'allOrders');
-            }
+            const orders = currentTab === 'pending'
+                ? allOrders.filter(o => o.order_status === 'pending')
+                : allOrders;
+
+            const container = document.getElementById(
+                currentTab === 'pending' ? 'pendingOrders' : 'allOrders'
+            );
+
+            container.innerHTML = orders.map(o => `
+        <div class="order-card">
+          <div class="order-header">
+            <div class="order-id">Order #${o.order_id}</div>
+            <div class="order-status status-${o.order_status}">${o.order_status.toUpperCase()}</div>
+          </div>
+
+          <div class="order-row">
+            <span class="label">👤 Customer</span>
+            <span class="value">${o.display_name}</span>
+          </div>
+
+          <div class="order-details">
+            <strong>🍣 Order</strong>
+            <p>${o.order_details}</p>
+          </div>
+
+          <div class="order-row"><span class="label">💰 Total</span><span class="value">$${o.total_amount}</span></div>
+          <div class="order-row"><span class="label">🎁 Points</span><span class="value">${o.points_earned}</span></div>
+          <div class="order-row"><span class="label">📅 Date</span><span class="value">${new Date(o.order_date).toLocaleString()}</span></div>
+
+          ${o.order_status === 'pending'
+                    ? `<button class="btn btn-complete" onclick="completeOrder(${o.order_id})">Mark Completed</button>`
+                    : `<button class="btn btn-completed" disabled>Completed</button>`}
+        </div>
+      `).join('');
         }
 
-        // Display order list
-        function displayOrderList(orders, containerId) {
-            const container = document.getElementById(containerId);
-            
-            if (orders.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div style="font-size: 48px;">📭</div>
-                        <p>No orders found</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = orders.map(order => `
-                <div class="order-card">
-                    <div class="order-header">
-                        <div class="order-id">Order #${order.order_id}</div>
-                        <div class="order-status status-${order.order_status}">
-                            ${order.order_status.toUpperCase()}
-                        </div>
-                    </div>
-                    
-                    <div class="order-details">
-                        <strong>🍣 Order:</strong>
-                        <p>${order.order_details}</p>
-                    </div>
-                    
-                    <div class="order-info">
-                        <div class="order-row">
-                            <span class="label">💰 Total:</span>
-                            <span class="value">$${order.total_amount}</span>
-                        </div>
-                        <div class="order-row">
-                            <span class="label">🎁 Points Earned:</span>
-                            <span class="value">${order.points_earned} pts</span>
-                        </div>
-                        <div class="order-row">
-                            <span class="label">📅 Date:</span>
-                            <span class="value">${new Date(order.order_date).toLocaleString()}</span>
-                        </div>
-                    </div>
-                    
-                    ${order.order_status === 'pending' ? `
-                        <button class="btn btn-complete" onclick="completeOrder(${order.order_id})">
-                            ✅ Mark as Completed
-                        </button>
-                    ` : `
-                        <button class="btn btn-completed" disabled>
-                            ✓ Completed
-                        </button>
-                    `}
-                </div>
-            `).join('');
-        }
-
-        // Switch tab
-        function switchTab(tab) {
+        function switchTab(tab, event) {
             currentTab = tab;
-            
-            // Update tab buttons
-            document.querySelectorAll('.tab').forEach(btn => {
-                btn.classList.remove('active');
-            });
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
             event.target.classList.add('active');
-            
-            // Show/hide content
-            if (tab === 'pending') {
-                document.getElementById('pendingOrders').classList.remove('hidden');
-                document.getElementById('allOrders').classList.add('hidden');
-            } else {
-                document.getElementById('pendingOrders').classList.add('hidden');
-                document.getElementById('allOrders').classList.remove('hidden');
-            }
-            
+
+            document.getElementById('pendingOrders').classList.toggle('hidden', tab !== 'pending');
+            document.getElementById('allOrders').classList.toggle('hidden', tab !== 'all');
+
             displayOrders();
         }
 
-        // Complete order
-        async function completeOrder(orderId) {
-            if (!confirm('Mark this order as completed?')) {
-                return;
-            }
+        async function completeOrder(id) {
+            if (!confirm('Mark order as completed?')) return;
 
-            try {
-                const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'completed' })
-                });
+            await fetch(`${API_URL}/api/orders/${id}/status`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'completed' })
+            });
 
-                const result = await response.json();
-
-                if (result.success) {
-                    alert('✅ Order marked as completed!');
-                    
-                    // Reload dashboard
-                    await loadDashboard();
-                } else {
-                    alert(`❌ ${result.message}`);
-                }
-            } catch (error) {
-                console.error('Complete order error:', error);
-                alert('❌ Failed to update order');
-            }
+            loadDashboard();
         }
 
-        // Auto-refresh every 30 seconds
-        setInterval(async () => {
-            await loadDashboard();
-        }, 30000);
-
-        // Initialize on load
+        setInterval(loadDashboard, 30000);
         window.addEventListener('load', initializeLIFF);
     </script>
 </body>
+
 </html>
