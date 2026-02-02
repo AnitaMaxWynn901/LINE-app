@@ -33,8 +33,15 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Serve static files (for LIFF app later)
+app.use(express.static("public"));
+
 // ============================================
-// LINE WEBHOOK (MUST come BEFORE express.json())
+// LINE WEBHOOK
 // ============================================
 
 app.post("/webhook", line.middleware(lineConfig), async (req, res) => {
@@ -48,17 +55,6 @@ app.post("/webhook", line.middleware(lineConfig), async (req, res) => {
   }
 });
 
-// Middleware
-app.use(express.json());
-app.use(cors());
-
-// Serve static files (for LIFF app later)
-app.use(express.static("public"));
-
-// ============================================
-// LINE EVENT HANDLER
-// ============================================
-
 async function handleLineEvent(event) {
   console.log("📨 LINE Event:", event.type);
 
@@ -67,6 +63,7 @@ async function handleLineEvent(event) {
     const userId = event.source.userId;
     console.log(`✅ New follower: ${userId}`);
 
+    // EVERYONE gets welcome card when they first add the bot
     return lineClient.replyMessage({
       replyToken: event.replyToken,
       messages: [getWelcomeCard()],
@@ -76,7 +73,6 @@ async function handleLineEvent(event) {
   // Handle MESSAGE events
   if (event.type === "message" && event.message.type === "text") {
     const userMessage = event.message.text;
-    const text = userMessage.toLowerCase().trim();
     const userId = event.source.userId;
 
     console.log(`👤 User ${userId} said: ${userMessage}`);
@@ -89,27 +85,22 @@ async function handleLineEvent(event) {
 
     const isRegistered = users && users.length > 0;
 
-    // ============================================
-    // 1️⃣ Greetings → Always show Welcome Card
-    // ============================================
-    if (["hello", "hi", "hey", "start"].includes(text)) {
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [getWelcomeCard()],
-      });
-    }
-
-    // ============================================
-    // 2️⃣ Menu / Order keywords
-    // ============================================
-    if (text.includes("menu") || text.includes("order")) {
+    // Handle different message types
+    if (
+      userMessage.toLowerCase().includes("menu") ||
+      userMessage.toLowerCase().includes("order") ||
+      userMessage.toLowerCase().includes("start")
+    ) {
       if (isRegistered) {
+        // Registered user - show personalized menu card
         const user = users[0];
+
         return lineClient.replyMessage({
           replyToken: event.replyToken,
           messages: [getMenuCard(user.display_name, user.points)],
         });
       } else {
+        // Not registered - show welcome card with register button
         return lineClient.replyMessage({
           replyToken: event.replyToken,
           messages: [getWelcomeCard()],
@@ -117,12 +108,11 @@ async function handleLineEvent(event) {
       }
     }
 
-    // ============================================
-    // 3️⃣ Order confirmation messages (from LIFF app)
-    // ============================================
+    // Handle order confirmation messages (from LIFF app)
     if (userMessage.includes("🍣 ORDER")) {
       console.log("📦 Order message detected");
 
+      // Extract order details (we'll improve this later)
       return lineClient.replyMessage({
         replyToken: event.replyToken,
         messages: [
@@ -134,9 +124,7 @@ async function handleLineEvent(event) {
       });
     }
 
-    // ============================================
-    // 4️⃣ Default response
-    // ============================================
+    // Default response - show welcome card to everyone
     if (isRegistered) {
       const user = users[0];
       return lineClient.replyMessage({
@@ -172,7 +160,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// Registration endpoint
+// Registration endpoint (normal users)
 app.post("/api/register", async (req, res) => {
   try {
     const { lineUid, displayName, phoneNumber, email } = req.body;
@@ -252,6 +240,106 @@ app.post("/api/register", async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Registration error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during registration",
+      error: error.message,
+    });
+  }
+});
+
+// Admin registration endpoint (with role selection)
+app.post("/api/register-admin", async (req, res) => {
+  try {
+    const { lineUid, displayName, phoneNumber, email, userRole } = req.body;
+
+    // Validation
+    if (!lineUid || !displayName || !phoneNumber || !userRole) {
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required including user role.",
+      });
+    }
+
+    if (phoneNumber.length < 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid Phone Number (at least 10 digits)",
+      });
+    }
+
+    // Validate role
+    const validRoles = ["user", "shop_master", "admin"];
+    if (!validRoles.includes(userRole)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user role",
+      });
+    }
+
+    // Check if user already registered
+    const { data: existingUsers } = await supabase
+      .from("users")
+      .select("*")
+      .eq("line_uid", lineUid);
+
+    if (existingUsers && existingUsers.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "This LINE account is already registered.",
+      });
+    }
+
+    // Check if phone number already used (only enforce for regular users)
+    // Shop masters and admins can share phone numbers
+    if (userRole === "user") {
+      const { data: existingPhone } = await supabase
+        .from("users")
+        .select("*")
+        .eq("phone_number", phoneNumber);
+
+      if (existingPhone && existingPhone.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "This phone number is already used.",
+        });
+      }
+    }
+
+    // Register new user with specified role
+    const { data: newUser, error: insertError } = await supabase
+      .from("users")
+      .insert([
+        {
+          line_uid: lineUid,
+          display_name: displayName,
+          phone_number: phoneNumber,
+          email: email || null,
+          user_role: userRole,
+          points: 0,
+        },
+      ])
+      .select()
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    console.log(`✅ New ${userRole} registered:`, newUser.line_uid);
+
+    res.status(201).json({
+      success: true,
+      message: `🎉 Registration Successful as ${userRole}!`,
+      data: {
+        lineUid: newUser.line_uid,
+        displayName: newUser.display_name,
+        userRole: newUser.user_role,
+        points: newUser.points,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Admin registration error:", error);
     res.status(500).json({
       success: false,
       message: "Server error during registration",

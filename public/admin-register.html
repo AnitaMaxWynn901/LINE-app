@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Registration</title>
+
+    <!-- LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 400px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #ff6b6b;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .warning p {
+            font-size: 13px;
+            color: #856404;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-info img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .user-details h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .user-details p {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #ff6b6b;
+        }
+
+        .role-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .role-option {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .role-option:hover {
+            border-color: #ff6b6b;
+        }
+
+        .role-option.selected {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+            color: white;
+        }
+
+        .role-option .icon {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .role-option .label {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ff6b6b;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .success h3 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Admin Registration</h1>
+            <p>Register with special roles</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Initializing...</p>
+        </div>
+
+        <div id="registerForm" class="hidden">
+            <div class="warning">
+                <p>⚠️ This page is for administrators only. Choose your role carefully!</p>
+            </div>
+
+            <div id="userInfo" class="user-info"></div>
+
+            <div class="form-group">
+                <label>📱 Phone Number *</label>
+                <input type="tel" id="phone" placeholder="0812345678" class="input-field">
+            </div>
+
+            <div class="form-group">
+                <label>📧 Email (optional)</label>
+                <input type="email" id="email" placeholder="your@email.com" class="input-field">
+            </div>
+
+            <div class="form-group">
+                <label>👤 Select Role *</label>
+                <div class="role-selector">
+                    <div class="role-option" onclick="selectRole('user')">
+                        <div class="icon">👤</div>
+                        <div class="label">User</div>
+                    </div>
+                    <div class="role-option selected" onclick="selectRole('shop_master')">
+                        <div class="icon">👨‍🍳</div>
+                        <div class="label">Shop Master</div>
+                    </div>
+                    <div class="role-option" onclick="selectRole('admin')">
+                        <div class="icon">🔧</div>
+                        <div class="label">Admin</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="registerAdmin()">Register</button>
+        </div>
+
+        <div id="successMessage" class="success hidden">
+            <h3>✅ Registration Successful!</h3>
+            <p id="successText"></p>
+        </div>
+    </div>
+
+    <script>
+        const LIFF_ID = '2008995030-W39gBpe4';
+        const API_URL = 'https://line-app-94vb.onrender.com';
+
+        let userProfile = null;
+        let selectedRole = 'shop_master'; // Default to shop_master
+
+        // Initialize LIFF
+        async function initializeLIFF() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                userProfile = await liff.getProfile();
+                console.log('User profile:', userProfile);
+
+                // Check if already registered
+                const response = await fetch(`${API_URL}/api/user/${userProfile.userId}`);
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    showAlreadyRegistered(userData);
+                } else {
+                    showRegistrationForm();
+                }
+
+            } catch (error) {
+                console.error('LIFF error:', error);
+                document.getElementById('loading').innerHTML = `
+                    <p style="color: red;">Error: ${error.message}</p>
+                `;
+            }
+        }
+
+        // Show already registered message
+        function showAlreadyRegistered(userData) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('successMessage').classList.remove('hidden');
+            document.getElementById('successText').innerHTML = `
+                You're already registered as <strong>${userData.userRole}</strong>!<br>
+                <small>Close this window to continue.</small>
+            `;
+        }
+
+        // Show registration form
+        function showRegistrationForm() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('userInfo').innerHTML = `
+                <img src="${userProfile.pictureUrl}" alt="Profile">
+                <div class="user-details">
+                    <h3>${userProfile.displayName}</h3>
+                    <p>LINE ID: ${userProfile.userId.substring(0, 10)}...</p>
+                </div>
+            `;
+            document.getElementById('registerForm').classList.remove('hidden');
+        }
+
+        // Select role
+        function selectRole(role) {
+            selectedRole = role;
+
+            document.querySelectorAll('.role-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+
+            event.target.closest('.role-option').classList.add('selected');
+        }
+
+        // Register admin
+        async function registerAdmin() {
+            const phone = document.getElementById('phone').value.trim();
+            const email = document.getElementById('email').value.trim();
+
+            // Validation
+            if (!phone) {
+                alert('❌ Please enter your phone number');
+                return;
+            }
+
+            if (phone.length < 10) {
+                alert('❌ Please enter a valid phone number (at least 10 digits)');
+                return;
+            }
+
+            if (!selectedRole) {
+                alert('❌ Please select a role');
+                return;
+            }
+
+            // Confirm role
+            const roleNames = {
+                user: 'User (Customer)',
+                shop_master: 'Shop Master (Restaurant Owner)',
+                admin: 'Admin (System Administrator)'
+            };
+
+            if (!confirm(`Register as ${roleNames[selectedRole]}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/register-admin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        lineUid: userProfile.userId,
+                        displayName: userProfile.displayName,
+                        phoneNumber: phone,
+                        email: email || null,
+                        userRole: selectedRole
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('registerForm').classList.add('hidden');
+                    document.getElementById('successMessage').classList.remove('hidden');
+                    document.getElementById('successText').innerHTML = `
+                        Registered as <strong>${roleNames[selectedRole]}</strong>!<br>
+                        <small>You can now close this window.</small>
+                    `;
+
+                    setTimeout(() => {
+                        liff.closeWindow();
+                    }, 3000);
+                } else {
+                    alert(`❌ ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                alert('❌ Something went wrong. Please try again.');
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', initializeLIFF);
+    </script>
+</body>
+
+</html>
