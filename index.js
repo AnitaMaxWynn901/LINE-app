@@ -33,13 +33,6 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Serve static files (for LIFF app later)
-app.use(express.static("public"));
-
 // ============================================
 // LINE WEBHOOK
 // ============================================
@@ -54,6 +47,13 @@ app.post("/webhook", line.middleware(lineConfig), async (req, res) => {
     res.status(500).end();
   }
 });
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Serve static files (for LIFF app later)
+app.use(express.static("public"));
 
 async function handleLineEvent(event) {
   console.log("📨 LINE Event:", event.type);
