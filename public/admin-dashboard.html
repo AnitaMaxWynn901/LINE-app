@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard</title>
+
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding-bottom: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #f5576c;
+        }
+
+        .section {
+            padding: 0 20px 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border: none;
+            background: white;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .user-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-header {
+            background: #f8f9fa;
+            padding: 12px;
+            font-weight: bold;
+            font-size: 14px;
+            border-bottom: 2px solid #e9ecef;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .table-row {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 10px;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .table-row:hover {
+            background: #f8f9fa;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .role-user {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .role-shop_master {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .role-admin {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #f5576c;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #f5576c;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-actions .btn {
+            flex: 1;
+            padding: 12px;
+        }
+
+        .order-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .order-status {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .order-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .label {
+            color: #666;
+        }
+
+        .value {
+            font-weight: 600;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f5576c;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .user-details {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>🔧 Admin Dashboard</h1>
+        <p>System Management & Control</p>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading dashboard...</p>
+    </div>
+
+    <div id="dashboard" class="hidden">
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>👥 Total Users</h3>
+                <div id="statUsers" class="value">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>👨‍🍳 Shop Masters</h3>
+                <div id="statShopMasters" class="value">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>📦 Total Orders</h3>
+                <div id="statOrders" class="value">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>💰 Total Revenue</h3>
+                <div id="statRevenue" class="value">$0</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="section">
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('users', event)">👥 Users</button>
+                <button class="tab" onclick="switchTab('shopMasters', event)">👨‍🍳 Shop Masters</button>
+                <button class="tab" onclick="switchTab('orders', event)">📦 Orders</button>
+            </div>
+
+            <!-- Users Tab -->
+            <div id="usersTab">
+                <div class="section-title">
+                    <span>User Management</span>
+                </div>
+                <input type="text" class="search-box" id="userSearch" placeholder="Search users..."
+                    oninput="filterUsers()" />
+                <div id="usersContainer"></div>
+            </div>
+
+            <!-- Shop Masters Tab -->
+            <div id="shopMastersTab" class="hidden">
+                <div class="section-title">
+                    <span>Shop Master Management</span>
+                </div>
+                <input type="text" class="search-box" id="shopMasterSearch" placeholder="Search shop masters..."
+                    oninput="filterShopMasters()" />
+                <div id="shopMastersContainer"></div>
+            </div>
+
+            <!-- Orders Tab -->
+            <div id="ordersTab" class="hidden">
+                <div class="section-title">
+                    <span>Order Management</span>
+                </div>
+                <input type="text" class="search-box" id="orderSearch" placeholder="Search orders..."
+                    oninput="filterOrders()" />
+                <div id="ordersContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Role Modal -->
+    <div id="roleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Change User Role</div>
+            <div class="form-group">
+                <label>User</label>
+                <div id="modalUserName" style="padding: 10px; background: #f8f9fa; border-radius: 8px;">-</div>
+            </div>
+            <div class="form-group">
+                <label>New Role</label>
+                <select id="newRole">
+                    <option value="user">👤 User (Customer)</option>
+                    <option value="shop_master">👨‍🍳 Shop Master</option>
+                    <option value="admin">🔧 Admin</option>
+                </select>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeRoleModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveRole()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adjust Points Modal -->
+    <div id="pointsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Adjust User Points</div>
+            <div class="form-group">
+                <label>User</label>
+                <div id="modalPointsUserName" style="padding: 10px; background: #f8f9fa; border-radius: 8px;">-</div>
+            </div>
+            <div class="form-group">
+                <label>Current Points: <span id="currentPoints">0</span></label>
+            </div>
+            <div class="form-group">
+                <label>New Points</label>
+                <input type="number" id="newPoints" placeholder="Enter new points value" min="0" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closePointsModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePoints()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LIFF_ID = '2008995030-BmX1RlOW';
+        const API_URL = 'https://line-app-94vb.onrender.com';
+
+        let currentTab = 'users';
+        let allUsers = [];
+        let allOrders = [];
+        let filteredUsers = [];
+        let filteredOrders = [];
+        let selectedUser = null;
+
+        async function initializeLIFF() {
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) return liff.login();
+
+            const profile = await liff.getProfile();
+            const userRes = await fetch(`${API_URL}/api/user/${profile.userId}`);
+            const user = await userRes.json();
+
+            if (user.userRole !== 'admin') {
+                alert('❌ Access denied. Admin only.');
+                return liff.closeWindow();
+            }
+
+            loadDashboard();
+        }
+
+        async function loadDashboard() {
+            try {
+                // Load users
+                const usersRes = await fetch(`${API_URL}/api/admin/users`);
+                const usersData = await usersRes.json();
+                allUsers = usersData.data || [];
+                filteredUsers = [...allUsers];
+
+                // Load orders
+                const ordersRes = await fetch(`${API_URL}/api/dashboard/shop`);
+                const ordersData = await ordersRes.json();
+                allOrders = ordersData.data.recentOrders || [];
+                filteredOrders = [...allOrders];
+
+                // Update statistics
+                const totalUsers = allUsers.filter(u => u.user_role === 'user').length;
+                const shopMasters = allUsers.filter(u => u.user_role === 'shop_master').length;
+                const totalOrders = allOrders.length;
+                const totalRevenue = allOrders
+                    .filter(o => o.order_status === 'completed')
+                    .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+
+                document.getElementById('statUsers').textContent = totalUsers;
+                document.getElementById('statShopMasters').textContent = shopMasters;
+                document.getElementById('statOrders').textContent = totalOrders;
+                document.getElementById('statRevenue').textContent = '$' + totalRevenue.toFixed(2);
+
+                displayUsers();
+                displayOrders();
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+            } catch (error) {
+                console.error('Load dashboard error:', error);
+                document.getElementById('loading').innerHTML = '<p style="color: red;">Error loading dashboard</p>';
+            }
+        }
+
+        function switchTab(tab, event) {
+            currentTab = tab;
+
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Show/hide tab content
+            document.getElementById('usersTab').classList.toggle('hidden', tab !== 'users');
+            document.getElementById('shopMastersTab').classList.toggle('hidden', tab !== 'shopMasters');
+            document.getElementById('ordersTab').classList.toggle('hidden', tab !== 'orders');
+
+            if (tab === 'users') displayUsers();
+            if (tab === 'shopMasters') displayShopMasters();
+            if (tab === 'orders') displayOrders();
+        }
+
+        function filterUsers() {
+            const search = document.getElementById('userSearch').value.toLowerCase();
+            filteredUsers = allUsers.filter(u =>
+                u.display_name.toLowerCase().includes(search) ||
+                u.phone_number.toLowerCase().includes(search) ||
+                u.email?.toLowerCase().includes(search)
+            );
+            displayUsers();
+        }
+
+        function filterShopMasters() {
+            const search = document.getElementById('shopMasterSearch').value.toLowerCase();
+            filteredUsers = allUsers.filter(u =>
+                u.user_role === 'shop_master' && (
+                    u.display_name.toLowerCase().includes(search) ||
+                    u.phone_number.toLowerCase().includes(search)
+                )
+            );
+            displayShopMasters();
+        }
+
+        function filterOrders() {
+            const search = document.getElementById('orderSearch').value.toLowerCase();
+            filteredOrders = allOrders.filter(o =>
+                o.display_name.toLowerCase().includes(search) ||
+                o.order_details.toLowerCase().includes(search) ||
+                String(o.order_id).includes(search)
+            );
+            displayOrders();
+        }
+
+        function displayUsers() {
+            const container = document.getElementById('usersContainer');
+
+            if (!filteredUsers.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👤</div>
+                        <p>No users found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="user-table">
+                    <div class="table-header">
+                        <div>User</div>
+                        <div>Role</div>
+                        <div>Points</div>
+                        <div>Actions</div>
+                    </div>
+                    ${filteredUsers.map(u => `
+                        <div class="table-row">
+                            <div>
+                                <div class="user-name">${u.display_name}</div>
+                                <div class="user-details">${u.phone_number}</div>
+                            </div>
+                            <div>
+                                <span class="role-badge role-${u.user_role}">${u.user_role.replace('_', ' ')}</span>
+                            </div>
+                            <div>${u.points} pts</div>
+                            <div class="action-buttons">
+                                <button class="btn btn-small btn-primary" onclick='openRoleModal(${JSON.stringify(u)})'>
+                                    Change Role
+                                </button>
+                                <button class="btn btn-small btn-success" onclick='openPointsModal(${JSON.stringify(u)})'>
+                                    Points
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function displayShopMasters() {
+            const shopMasters = allUsers.filter(u => u.user_role === 'shop_master');
+            const container = document.getElementById('shopMastersContainer');
+
+            if (!shopMasters.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👨‍🍳</div>
+                        <p>No shop masters found</p>
+                        <p style="font-size: 14px; margin-top: 10px;">Promote users to shop master role to manage orders</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="user-table">
+                    <div class="table-header">
+                        <div>Shop Master</div>
+                        <div>Contact</div>
+                        <div>Points</div>
+                        <div>Actions</div>
+                    </div>
+                    ${shopMasters.map(u => `
+                        <div class="table-row">
+                            <div>
+                                <div class="user-name">${u.display_name}</div>
+                                <div class="user-details">Registered: ${new Date(u.registered_at).toLocaleDateString()}</div>
+                            </div>
+                            <div class="user-details">${u.phone_number}</div>
+                            <div>${u.points} pts</div>
+                            <div class="action-buttons">
+                                <button class="btn btn-small btn-danger" onclick='demoteToUser("${u.line_uid}")'>
+                                    Demote to User
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function displayOrders() {
+            const container = document.getElementById('ordersContainer');
+
+            if (!filteredOrders.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <p>No orders found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredOrders.map(o => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <strong>Order #${o.order_id}</strong>
+                        <span class="order-status status-${o.order_status}">${o.order_status.toUpperCase()}</span>
+                    </div>
+                    <div class="order-row">
+                        <span class="label">👤 Customer</span>
+                        <span class="value">${o.display_name}</span>
+                    </div>
+                    <div class="order-row">
+                        <span class="label">🍣 Order</span>
+                        <span class="value">${o.order_details}</span>
+                    </div>
+                    <div class="order-row">
+                        <span class="label">💰 Total</span>
+                        <span class="value">$${o.total_amount}</span>
+                    </div>
+                    <div class="order-row">
+                        <span class="label">📅 Date</span>
+                        <span class="value">${new Date(o.order_date).toLocaleString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openRoleModal(user) {
+            selectedUser = user;
+            document.getElementById('modalUserName').textContent = user.display_name;
+            document.getElementById('newRole').value = user.user_role;
+            document.getElementById('roleModal').classList.add('active');
+        }
+
+        function closeRoleModal() {
+            document.getElementById('roleModal').classList.remove('active');
+            selectedUser = null;
+        }
+
+        async function saveRole() {
+            const newRole = document.getElementById('newRole').value;
+
+            if (!selectedUser) return;
+
+            if (!confirm(`Change ${selectedUser.display_name}'s role to ${newRole}?`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/users/${selectedUser.line_uid}/role`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: newRole })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    alert('✅ Role updated successfully!');
+                    closeRoleModal();
+                    loadDashboard();
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                console.error('Update role error:', error);
+                alert('❌ Failed to update role');
+            }
+        }
+
+        function openPointsModal(user) {
+            selectedUser = user;
+            document.getElementById('modalPointsUserName').textContent = user.display_name;
+            document.getElementById('currentPoints').textContent = user.points;
+            document.getElementById('newPoints').value = user.points;
+            document.getElementById('pointsModal').classList.add('active');
+        }
+
+        function closePointsModal() {
+            document.getElementById('pointsModal').classList.remove('active');
+            selectedUser = null;
+        }
+
+        async function savePoints() {
+            const newPoints = parseInt(document.getElementById('newPoints').value);
+
+            if (!selectedUser || isNaN(newPoints) || newPoints < 0) {
+                alert('❌ Please enter a valid points value');
+                return;
+            }
+
+            if (!confirm(`Set ${selectedUser.display_name}'s points to ${newPoints}?`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/users/${selectedUser.line_uid}/points`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ points: newPoints })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    alert('✅ Points updated successfully!');
+                    closePointsModal();
+                    loadDashboard();
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                console.error('Update points error:', error);
+                alert('❌ Failed to update points');
+            }
+        }
+
+        async function demoteToUser(lineUid) {
+            if (!confirm('Demote this shop master to regular user?')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/api/admin/users/${lineUid}/role`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: 'user' })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    alert('✅ User demoted successfully!');
+                    loadDashboard();
+                } else {
+                    alert('❌ ' + result.message);
+                }
+            } catch (error) {
+                console.error('Demote error:', error);
+                alert('❌ Failed to demote user');
+            }
+        }
+
+        // Auto refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+
+        window.addEventListener('load', initializeLIFF);
+    </script>
+</body>
+
+</html>

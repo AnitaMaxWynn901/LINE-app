@@ -797,6 +797,202 @@ app.get("/api/dashboard/admin", async (req, res) => {
   }
 });
 
+// ============================================
+// ADMIN API ENDPOINTS (Add these to index.js)
+// ============================================
+
+// Get all users (Admin only)
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    const { data: users, error } = await supabase
+      .from("users")
+      .select("*")
+      .order("registered_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  } catch (error) {
+    console.error("❌ Get all users error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// Change user role (Admin only)
+app.put("/api/admin/users/:lineUid/role", async (req, res) => {
+  try {
+    const { lineUid } = req.params;
+    const { role } = req.body;
+
+    // Validate role
+    const validRoles = ["user", "shop_master", "admin"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid role. Must be user, shop_master, or admin",
+      });
+    }
+
+    // Update user role
+    const { data: updatedUser, error } = await supabase
+      .from("users")
+      .update({ user_role: role })
+      .eq("line_uid", lineUid)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`✅ User ${lineUid} role changed to: ${role}`);
+
+    res.json({
+      success: true,
+      message: `User role updated to ${role}`,
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("❌ Change role error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// Adjust user points (Admin only)
+app.put("/api/admin/users/:lineUid/points", async (req, res) => {
+  try {
+    const { lineUid } = req.params;
+    const { points } = req.body;
+
+    // Validate points
+    if (typeof points !== "number" || points < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Points must be a non-negative number",
+      });
+    }
+
+    // Update user points
+    const { data: updatedUser, error } = await supabase
+      .from("users")
+      .update({ points: points })
+      .eq("line_uid", lineUid)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`✅ User ${lineUid} points updated to: ${points}`);
+
+    res.json({
+      success: true,
+      message: `User points updated to ${points}`,
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("❌ Update points error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// Get enhanced admin statistics
+app.get("/api/admin/statistics", async (req, res) => {
+  try {
+    const { data: users } = await supabase.from("users").select("*");
+    const { data: orders } = await supabase.from("orders").select("*");
+
+    // User statistics by role
+    const usersByRole = {
+      users: users.filter((u) => u.user_role === "user").length,
+      shopMasters: users.filter((u) => u.user_role === "shop_master").length,
+      admins: users.filter((u) => u.user_role === "admin").length,
+    };
+
+    // Order statistics
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(
+      (o) => o.order_status === "pending"
+    ).length;
+    const completedOrders = orders.filter(
+      (o) => o.order_status === "completed"
+    ).length;
+    const cancelledOrders = orders.filter(
+      (o) => o.order_status === "cancelled"
+    ).length;
+
+    // Revenue statistics
+    const totalRevenue = orders
+      .filter((o) => o.order_status === "completed")
+      .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+
+    // Today's statistics
+    const today = new Date().toISOString().split("T")[0];
+    const todayOrders = orders.filter((o) => o.order_date.startsWith(today));
+    const todayRevenue = todayOrders
+      .filter((o) => o.order_status === "completed")
+      .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+
+    // Growth statistics (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const recentUsers = users.filter(
+      (u) => new Date(u.registered_at) >= sevenDaysAgo
+    ).length;
+    const recentOrders = orders.filter(
+      (o) => new Date(o.order_date) >= sevenDaysAgo
+    ).length;
+
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: users.length,
+          byRole: usersByRole,
+          recentSignups: recentUsers,
+        },
+        orders: {
+          total: totalOrders,
+          pending: pendingOrders,
+          completed: completedOrders,
+          cancelled: cancelledOrders,
+          recent: recentOrders,
+        },
+        revenue: {
+          total: totalRevenue.toFixed(2),
+          today: todayRevenue.toFixed(2),
+        },
+      },
+    });
+  } catch (error) {
+    console.error("❌ Get admin statistics error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log("🚀 ========================================");
