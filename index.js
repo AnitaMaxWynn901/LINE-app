@@ -655,14 +655,39 @@ app.get("/api/dashboard/user/:lineUid", async (req, res) => {
 // Get shop master dashboard
 app.get("/api/dashboard/shop", async (req, res) => {
   try {
-    const { data: allOrders, error: ordersError } = await supabase
-      .from("orders")
-      .select("*");
+    // 1️⃣ Fetch orders WITH user display name (JOIN)
+    const { data: allOrders, error: ordersError } = await supabase.from(
+      "orders"
+    ).select(`
+        order_id,
+        order_details,
+        total_amount,
+        points_earned,
+        order_status,
+        order_date,
+        line_uid,
+        users (
+          display_name
+        )
+      `);
 
     if (ordersError) {
       throw ordersError;
     }
 
+    // 2️⃣ Normalize orders (flatten display_name)
+    const normalizedOrders = allOrders.map((order) => ({
+      order_id: order.order_id,
+      order_details: order.order_details,
+      total_amount: order.total_amount,
+      points_earned: order.points_earned,
+      order_status: order.order_status,
+      order_date: order.order_date,
+      line_uid: order.line_uid,
+      display_name: order.users?.display_name || "Unknown",
+    }));
+
+    // 3️⃣ Fetch users (for statistics)
     const { data: allUsers, error: usersError } = await supabase
       .from("users")
       .select("*");
@@ -671,32 +696,42 @@ app.get("/api/dashboard/shop", async (req, res) => {
       throw usersError;
     }
 
-    const totalOrders = allOrders.length;
-    const pendingOrders = allOrders.filter(
+    // 4️⃣ Statistics calculations
+    const totalOrders = normalizedOrders.length;
+
+    const pendingOrders = normalizedOrders.filter(
       (o) => o.order_status === "pending"
     ).length;
-    const completedOrders = allOrders.filter(
+
+    const completedOrders = normalizedOrders.filter(
       (o) => o.order_status === "completed"
     ).length;
-    const totalRevenue = allOrders
+
+    const totalRevenue = normalizedOrders
       .filter((o) => o.order_status === "completed")
       .reduce((sum, order) => sum + parseFloat(order.total_amount), 0);
+
     const totalCustomers = allUsers.filter(
       (u) => u.user_role === "user"
     ).length;
 
     const today = new Date().toISOString().split("T")[0];
-    const todayOrders = allOrders.filter((o) => o.order_date.startsWith(today));
+
+    const todayOrders = normalizedOrders.filter((o) =>
+      o.order_date.startsWith(today)
+    );
 
     const todayRevenue = todayOrders.reduce(
       (sum, order) => sum + parseFloat(order.total_amount),
       0
     );
 
-    const recentOrders = allOrders
+    // 5️⃣ Recent orders (latest 10)
+    const recentOrders = [...normalizedOrders]
       .sort((a, b) => new Date(b.order_date) - new Date(a.order_date))
       .slice(0, 10);
 
+    // 6️⃣ Response
     res.json({
       success: true,
       data: {
