@@ -1,112 +1,57 @@
 /**
- * Upload images to your LINE Rich Menus.
+ * Upload images for Rich Menus
  *
- * Prerequisites:
- * 1. Run create-richmenu.js first and copy the Rich Menu IDs into index.js.
- * 2. Create images 2500 x 1686 px (PNG or JPEG) and place them in richmenu-images/:
- *    - user.png       (or user.jpg)       → User menu
- *    - shop_master.png (or shop_master.jpg) → Shop Master menu
- *    - admin.png      (or admin.jpg)      → Admin menu
- *
- * Usage:
- *   node upload-richmenu-images.js
- *
- * Optional env vars (if different from index.js):
- *   RICH_MENU_USER_ID, RICH_MENU_SHOP_MASTER_ID, RICH_MENU_ADMIN_ID
+ * Requirements:
+ * - PNG
+ * - 2500 x 1686
  */
 
 require("dotenv").config();
 const fs = require("fs");
-const path = require("path");
+const line = require("@line/bot-sdk");
 
-// Use legacy Client for setRichMenuImage (Buffer support)
-const { Client } = require("@line/bot-sdk");
-
-const lineClient = new Client({
+// ===============================
+// CLIENT (IMPORTANT)
+// ===============================
+const client = new line.Client({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
 
-// Same IDs as index.js – or set via env
-const RICH_MENUS = {
-  user:
-    process.env.RICH_MENU_USER_ID ||
-    "richmenu-7e927704589f3fdc528d2109f0eba524",
-  shop_master:
-    process.env.RICH_MENU_SHOP_MASTER_ID ||
-    "richmenu-8bcf53dee6047027c4535960312476f3",
-  admin:
-    process.env.RICH_MENU_ADMIN_ID ||
-    "richmenu-85032b9ca1e7ef1295865003e6cd303e",
+// ===============================
+// RICH MENUS
+// ===============================
+const MENUS = {
+  user: {
+    id: "richmenu-4c2fb5baae65f486266f6dbb45566e4b",
+    image: "./richmenu-images/user.png",
+  },
+  shop_master: {
+    id: "richmenu-e6572e43832cb375bc321cb4f1875296",
+    image: "./richmenu-images/shop_master.png",
+  },
+  admin: {
+    id: "richmenu-1f7cc3a53633cf2fbf9c3a158d1fb003",
+    image: "./richmenu-images/admin.png",
+  },
 };
 
-const IMAGES_DIR = path.join(__dirname, "richmenu-images");
-
-function findImageFile(baseName) {
-  const names = [`${baseName}.png`, `${baseName}.jpg`, `${baseName}.jpeg`];
-  for (const name of names) {
-    const filePath = path.join(IMAGES_DIR, name);
-    if (fs.existsSync(filePath)) return filePath;
-  }
-  return null;
-}
-
-async function uploadImage(richMenuId, imagePath) {
-  const buffer = fs.readFileSync(imagePath);
-  const ext = path.extname(imagePath).toLowerCase();
-  const contentType = ext === ".png" ? "image/png" : "image/jpeg";
-
-  await lineClient.setRichMenuImage(richMenuId, buffer, contentType);
-}
-
-async function main() {
-  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
-    console.error("❌ LINE_CHANNEL_ACCESS_TOKEN is not set in .env");
-    process.exit(1);
-  }
-
-  if (!fs.existsSync(IMAGES_DIR)) {
-    console.error(`❌ Folder "${IMAGES_DIR}" not found.`);
-    console.log("\nCreate it and add:");
-    console.log("  - user.png (or .jpg)");
-    console.log("  - shop_master.png (or .jpg)");
-    console.log("  - admin.png (or .jpg)");
-    console.log(
-      "\nImage size must be 2500 x 1686 pixels. See richmenu-images/README.md"
-    );
-    process.exit(1);
-  }
-
-  const entries = [
-    { role: "user", key: "user" },
-    { role: "shop_master", key: "shop_master" },
-    { role: "admin", key: "admin" },
-  ];
-
+// ===============================
+// MAIN
+// ===============================
+(async () => {
   console.log("🚀 Uploading Rich Menu images...\n");
 
-  for (const { role, key } of entries) {
-    const imagePath = findImageFile(key);
-    const richMenuId = RICH_MENUS[key];
-
-    if (!imagePath) {
-      console.log(
-        `⏭️  Skipped ${role}: no image (${key}.png or ${key}.jpg) in richmenu-images/`
-      );
-      continue;
-    }
-
+  for (const [role, menu] of Object.entries(MENUS)) {
     try {
-      await uploadImage(richMenuId, imagePath);
-      console.log(`✅ ${role}: uploaded ${path.basename(imagePath)}`);
+      const image = fs.readFileSync(menu.image);
+
+      await client.setRichMenuImage(menu.id, image, "image/png");
+
+      console.log(`✅ ${role}: image uploaded`);
     } catch (err) {
-      console.error(`❌ ${role}: upload failed –`, err.message);
+      console.error(`❌ ${role}:`, err.message);
     }
   }
 
-  console.log("\n✨ Done. Check your LINE bot to see the Rich Menu images.");
-}
-
-main().catch((err) => {
-  console.error("❌ Error:", err);
-  process.exit(1);
-});
+  console.log("\n✨ Done");
+})();
