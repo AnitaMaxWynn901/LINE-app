@@ -27,11 +27,10 @@ const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: lineConfig.channelAccessToken,
 });
 
-// Rich Menu IDs
 const RICH_MENUS = {
-  user: "richmenu-7e927704589f3fdc528d2109f0eba524",
-  shop_master: "richmenu-8bcf53dee6047027c4535960312476f3",
-  admin: "richmenu-85032b9ca1e7ef1295865003e6cd303e",
+  user: "richmenu-7e927704589f3fdc528d2109f0eba524", // Replace after creation
+  shop_master: "richmenu-8bcf53dee6047027c4535960312476f3", // Replace after creation
+  admin: "richmenu-85032b9ca1e7ef1295865003e6cd303e", // Replace after creation
 };
 
 // Initialize Supabase client
@@ -74,7 +73,8 @@ async function linkRichMenu(lineUid, role) {
   }
 
   try {
-    await lineClient.linkRichMenuToUser(lineUid, richMenuId);
+    // ✅ FIXED: Use linkUserRichMenu (SDK v9 method)
+    await lineClient.linkUserRichMenu(lineUid, richMenuId);
     console.log(`✅ Rich Menu linked to ${lineUid} (${role})`);
   } catch (error) {
     console.error("❌ Failed to link Rich Menu:", error);
@@ -95,14 +95,16 @@ async function switchRichMenu(lineUid, newRole) {
   try {
     // Try to unlink old Rich Menu (might not exist for new users)
     try {
-      await lineClient.unlinkRichMenuFromUser(lineUid);
+      // ✅ FIXED: Use unlinkUserRichMenu (SDK v9 method)
+      await lineClient.unlinkUserRichMenu(lineUid);
     } catch (unlinkError) {
       // Ignore error if no Rich Menu was linked
       console.log("No existing Rich Menu to unlink");
     }
 
     // Link new Rich Menu
-    await lineClient.linkRichMenuToUser(lineUid, richMenuId);
+    // ✅ FIXED: Use linkUserRichMenu (SDK v9 method)
+    await lineClient.linkUserRichMenu(lineUid, richMenuId);
 
     console.log(`✅ Rich Menu switched for ${lineUid} to ${newRole}`);
   } catch (error) {
@@ -114,30 +116,11 @@ async function handleLineEvent(event) {
   console.log("📨 LINE Event:", event.type);
 
   // Handle FOLLOW event (when user adds bot as friend)
-  // 🆕 FIXED: Now checks if user exists and links Rich Menu
   if (event.type === "follow") {
     const userId = event.source.userId;
     console.log(`✅ New follower: ${userId}`);
 
-    // Check if user is already registered
-    const { data: users } = await supabase
-      .from("users")
-      .select("*")
-      .eq("line_uid", userId);
-
-    if (users && users.length > 0) {
-      // User is registered - link their Rich Menu
-      const user = users[0];
-      await linkRichMenu(userId, user.user_role);
-      console.log(`🔄 Returning user - Rich Menu linked (${user.user_role})`);
-    } else {
-      // New user - NO Rich Menu yet
-      console.log(
-        `👋 New user - No Rich Menu (will appear after registration)`
-      );
-    }
-
-    // Send welcome card to EVERYONE
+    // EVERYONE gets welcome card when they first add the bot
     return lineClient.replyMessage({
       replyToken: event.replyToken,
       messages: [getWelcomeCard()],
@@ -158,102 +141,6 @@ async function handleLineEvent(event) {
       .eq("line_uid", userId);
 
     const isRegistered = users && users.length > 0;
-
-    // 🆕 FIXED: Handle Rich Menu text messages
-    const lowerMessage = userMessage.toLowerCase();
-
-    if (lowerMessage === "my points") {
-      if (!isRegistered) {
-        return lineClient.replyMessage({
-          replyToken: event.replyToken,
-          messages: [
-            { type: "text", text: "Please register first to earn points! 🎁" },
-          ],
-        });
-      }
-
-      const user = users[0];
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [
-          {
-            type: "text",
-            text: `💎 Your Points: ${user.points}\n\nKeep ordering to earn more! 🍣`,
-          },
-        ],
-      });
-    }
-
-    if (lowerMessage === "my profile") {
-      if (!isRegistered) {
-        return lineClient.replyMessage({
-          replyToken: event.replyToken,
-          messages: [getWelcomeCard()],
-        });
-      }
-
-      const user = users[0];
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [
-          {
-            type: "text",
-            text: `👤 Profile\n\nName: ${user.display_name}\nPhone: ${
-              user.phone_number
-            }\nRole: ${user.user_role}\nPoints: ${
-              user.points
-            }\n\nMember since: ${new Date(
-              user.registered_at
-            ).toLocaleDateString()}`,
-          },
-        ],
-      });
-    }
-
-    if (lowerMessage === "contact") {
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [
-          {
-            type: "text",
-            text: "📞 Contact Us\n\nPhone: 02-123-4567\nEmail: hello@sushicafe.com\n\nBusiness Hours:\nMon-Fri: 10:00-22:00\nSat-Sun: 11:00-23:00",
-          },
-        ],
-      });
-    }
-
-    if (lowerMessage === "help") {
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [
-          {
-            type: "text",
-            text: "ℹ️ How to Use\n\n🍣 Order Now - Browse menu & place orders\n📋 My Orders - View order history\n💎 My Points - Check your points\n👤 Profile - View your info\n📞 Contact - Get our contact info\n\nNeed help? Contact us anytime!",
-          },
-        ],
-      });
-    }
-
-    if (
-      [
-        "pending orders",
-        "shop masters",
-        "all users",
-        "analytics",
-        "settings",
-        "statistics",
-      ].includes(lowerMessage)
-    ) {
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [
-          {
-            type: "text",
-            text: "Please use the dashboard for this feature. Click the dashboard button in the menu below! 📊",
-          },
-        ],
-      });
-    }
 
     // Handle different message types
     if (
@@ -398,9 +285,6 @@ app.post("/api/register", async (req, res) => {
 
     console.log("✅ New user registered:", newUser.line_uid);
 
-    // 🆕 FIXED: Link Rich Menu after registration
-    await linkRichMenu(newUser.line_uid, newUser.user_role);
-
     res.status(201).json({
       success: true,
       message: "🎉 Registration Successful!",
@@ -464,6 +348,7 @@ app.post("/api/register-admin", async (req, res) => {
     }
 
     // Check if phone number already used (only enforce for regular users)
+    // Shop masters and admins can share phone numbers
     if (userRole === "user") {
       const { data: existingPhone } = await supabase
         .from("users")
@@ -499,9 +384,6 @@ app.post("/api/register-admin", async (req, res) => {
     }
 
     console.log(`✅ New ${userRole} registered:`, newUser.line_uid);
-
-    // 🆕 FIXED: Link Rich Menu after registration
-    await linkRichMenu(newUser.line_uid, newUser.user_role);
 
     res.status(201).json({
       success: true,
@@ -830,6 +712,7 @@ app.get("/api/dashboard/user/:lineUid", async (req, res) => {
 // Get shop master dashboard
 app.get("/api/dashboard/shop", async (req, res) => {
   try {
+    // 1️⃣ Fetch orders WITH user display name (JOIN)
     const { data: allOrders, error: ordersError } = await supabase.from(
       "orders"
     ).select(`
@@ -849,6 +732,7 @@ app.get("/api/dashboard/shop", async (req, res) => {
       throw ordersError;
     }
 
+    // 2️⃣ Normalize orders (flatten display_name)
     const normalizedOrders = allOrders.map((order) => ({
       order_id: order.order_id,
       order_details: order.order_details,
@@ -860,6 +744,7 @@ app.get("/api/dashboard/shop", async (req, res) => {
       display_name: order.users?.display_name || "Unknown",
     }));
 
+    // 3️⃣ Fetch users (for statistics)
     const { data: allUsers, error: usersError } = await supabase
       .from("users")
       .select("*");
@@ -868,6 +753,7 @@ app.get("/api/dashboard/shop", async (req, res) => {
       throw usersError;
     }
 
+    // 4️⃣ Statistics calculations
     const totalOrders = normalizedOrders.length;
 
     const pendingOrders = normalizedOrders.filter(
@@ -897,10 +783,12 @@ app.get("/api/dashboard/shop", async (req, res) => {
       0
     );
 
+    // 5️⃣ Recent orders (latest 10)
     const recentOrders = [...normalizedOrders]
       .sort((a, b) => new Date(b.order_date) - new Date(a.order_date))
       .slice(0, 10);
 
+    // 6️⃣ Response
     res.json({
       success: true,
       data: {
@@ -967,7 +855,7 @@ app.get("/api/dashboard/admin", async (req, res) => {
 });
 
 // ============================================
-// ADMIN API ENDPOINTS
+// ADMIN API ENDPOINTS (Add these to index.js)
 // ============================================
 
 // Get all users (Admin only)
@@ -1025,9 +913,6 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
     }
 
     console.log(`✅ User ${lineUid} role changed to: ${role}`);
-
-    // 🆕 FIXED: Switch Rich Menu when role changes
-    await switchRichMenu(lineUid, role);
 
     res.json({
       success: true,
