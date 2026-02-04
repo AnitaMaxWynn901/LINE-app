@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Edit Menu – Shop Master</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding-bottom: 24px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+        }
+
+        .header h1 {
+            font-size: clamp(1.1rem, 4vw, 1.4rem);
+            word-wrap: break-word;
+        }
+
+        .header p {
+            font-size: 0.9rem;
+            margin-top: 4px;
+            opacity: 0.95;
+        }
+
+        .container {
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .menu-card {
+            background: white;
+            border-radius: 15px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .menu-card label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .menu-card input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+
+        .menu-card input:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .menu-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .menu-row .field-name {
+            flex: 1 1 180px;
+            min-width: 0;
+        }
+
+        .menu-row .field-price {
+            flex: 0 0 100px;
+        }
+
+        .menu-row .field-price input {
+            margin-bottom: 0;
+        }
+
+        .btn-save {
+            flex-shrink: 0;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 10px;
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-save:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-save.saved {
+            background: #28a745;
+        }
+
+        .item-id {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #666;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 10px;
+            margin: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .menu-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .menu-row .field-price {
+                flex: 1 1 auto;
+            }
+
+            .btn-save {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>📋 Edit User Menu</h1>
+        <p>Sushi Cafe – Change names and prices</p>
+    </div>
+
+    <div id="loading" class="loading">Loading...</div>
+    <div id="error" class="error hidden"></div>
+    <div id="content" class="container hidden">
+        <h2 class="section-title">🍣 Menu items</h2>
+        <div id="menuList"></div>
+    </div>
+
+    <script>
+        const LIFF_ID = '2008995030-4EY711eF';
+        const API_URL = 'https://line-app-94vb.onrender.com';
+
+        let lineUid = null;
+
+        async function init() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                const profile = await liff.getProfile();
+                lineUid = profile.userId;
+
+                const userRes = await fetch(`${API_URL}/api/user/${lineUid}`);
+                const user = await userRes.json();
+
+                if (user.userRole !== 'shop_master' && user.userRole !== 'admin') {
+                    showError('Access denied. Only Shop Master or Admin can edit the menu.');
+                    document.getElementById('loading').classList.add('hidden');
+                    return;
+                }
+
+                await loadMenu();
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('content').classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+                showError(e.message || 'Failed to load.');
+                document.getElementById('loading').classList.add('hidden');
+            }
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+        }
+
+        async function loadMenu() {
+            const res = await fetch(`${API_URL}/api/menu/items`);
+            const json = await res.json();
+            const items = json.data || [];
+
+            const list = document.getElementById('menuList');
+            list.innerHTML = items.map(item => `
+                <div class="menu-card" data-item-id="${item.item_id}">
+                    <div class="item-id">ID: ${item.item_id}</div>
+                    <div class="menu-row">
+                        <div class="field-name">
+                            <label>Name</label>
+                            <input type="text" value="${escapeHtml(item.name)}" data-field="name" />
+                        </div>
+                        <div class="field-price">
+                            <label>Price ($)</label>
+                            <input type="number" min="0" step="0.01" value="${item.price}" data-field="price" />
+                        </div>
+                        <button type="button" class="btn-save" onclick="saveItem('${item.item_id}')">Save</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function saveItem(itemId) {
+            const card = document.querySelector(`.menu-card[data-item-id="${itemId}"]`);
+            if (!card) return;
+
+            const nameInput = card.querySelector('input[data-field="name"]');
+            const priceInput = card.querySelector('input[data-field="price"]');
+            const btn = card.querySelector('.btn-save');
+
+            const name = nameInput.value.trim();
+            const price = priceInput.value;
+
+            if (!name) {
+                alert('Please enter a name.');
+                return;
+            }
+
+            if (price === '' || isNaN(Number(price)) || Number(price) < 0) {
+                alert('Please enter a valid price (0 or more).');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                const res = await fetch(`${API_URL}/api/shop/menu/items/${itemId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lineUid, name, price: Number(price) }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.message || 'Failed to save.');
+                    return;
+                }
+
+                btn.textContent = 'Saved ✓';
+                btn.classList.add('saved');
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = 'Save';
+                    btn.classList.remove('saved');
+                }, 2000);
+            } catch (e) {
+                alert('Network error. Try again.');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save';
+            }
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+
+</html>

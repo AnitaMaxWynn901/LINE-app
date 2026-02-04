@@ -488,6 +488,103 @@ app.get("/api/user/:lineUid", async (req, res) => {
   }
 });
 
+// ============================================
+// MENU ITEMS (for users + shop master edit)
+// Table: menu_items (item_id text PK, name text, price numeric, description text, sort_order int)
+// ============================================
+
+const DEFAULT_MENU_ITEMS = [
+  { item_id: "salmon", name: "Salmon Sushi", price: 12, description: "Fresh Norwegian salmon", sort_order: 1 },
+  { item_id: "tuna", name: "Tuna Sushi", price: 15, description: "Premium bluefin tuna", sort_order: 2 },
+  { item_id: "unagi", name: "Unagi Sushi", price: 18, description: "Grilled freshwater eel", sort_order: 3 },
+];
+
+// Get menu items (public – used by welcome-app and shop-menu)
+app.get("/api/menu/items", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("menu_items")
+      .select("item_id, name, price, description, sort_order")
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      console.log("⚠️ menu_items table missing or error, using defaults:", error.message);
+      return res.json({ success: true, data: DEFAULT_MENU_ITEMS });
+    }
+    if (!data || data.length === 0) {
+      return res.json({ success: true, data: DEFAULT_MENU_ITEMS });
+    }
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error("❌ GET menu items error:", err);
+    res.json({ success: true, data: DEFAULT_MENU_ITEMS });
+  }
+});
+
+// Update a menu item (shop_master or admin only)
+app.put("/api/shop/menu/items/:itemId", async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { lineUid, name, price } = req.body;
+
+    if (!lineUid || !name || price == null) {
+      return res.status(400).json({
+        success: false,
+        message: "lineUid, name and price are required.",
+      });
+    }
+
+    const priceNum = Number(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Price must be a non-negative number.",
+      });
+    }
+
+    const { data: users } = await supabase
+      .from("users")
+      .select("user_role")
+      .eq("line_uid", lineUid);
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+    const role = users[0].user_role;
+    if (role !== "shop_master" && role !== "admin") {
+      return res.status(403).json({ success: false, message: "Only Shop Master or Admin can edit menu." });
+    }
+
+    const { data: updated, error } = await supabase
+      .from("menu_items")
+      .upsert(
+        { item_id: itemId, name: name.trim(), price: priceNum },
+        { onConflict: "item_id" }
+      )
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Menu item update error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to update menu item. Ensure table menu_items exists.",
+        error: error.message,
+      });
+    }
+
+    console.log(`✅ Menu item updated: ${itemId} -> ${name} $${priceNum}`);
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    console.error("❌ PUT menu item error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message,
+    });
+  }
+});
+
 // Create order
 app.post("/api/orders", async (req, res) => {
   try {
