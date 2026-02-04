@@ -110,7 +110,7 @@ async function createShopMasterRichMenu() {
         action: {
           type: "uri",
           label: "Menu",
-          uri: "https://liff.line.me/2008995030-W39gBpe4",
+          uri: "https://liff.line.me/2008995030-4EY711eF",
         },
       },
       // Bottom right
