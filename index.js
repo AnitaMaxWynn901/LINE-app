@@ -283,6 +283,11 @@ app.post("/api/register", async (req, res) => {
       throw insertError;
     }
 
+    // 🔥 THIS IS THE KEY LINE
+    await linkRichMenu(newUser.line_uid, newUser.user_role);
+
+    console.log("✅ User registered + Rich Menu linked:", newUser.line_uid);
+
     console.log("✅ New user registered:", newUser.line_uid);
 
     res.status(201).json({
@@ -382,6 +387,11 @@ app.post("/api/register-admin", async (req, res) => {
     if (insertError) {
       throw insertError;
     }
+
+    // 🔥 AUTO-LINK Rich Menu based on role
+    await linkRichMenu(newUser.line_uid, newUser.user_role);
+
+    console.log(`✅ ${userRole} registered + Rich Menu linked`);
 
     console.log(`✅ New ${userRole} registered:`, newUser.line_uid);
 
