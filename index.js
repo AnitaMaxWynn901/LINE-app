@@ -285,6 +285,9 @@ app.post("/api/register", async (req, res) => {
 
     console.log("✅ New user registered:", newUser.line_uid);
 
+    // Link Rich Menu for new user (role: user) so they see it right after registration
+    await linkRichMenu(newUser.line_uid, "user");
+
     res.status(201).json({
       success: true,
       message: "🎉 Registration Successful!",
@@ -384,6 +387,9 @@ app.post("/api/register-admin", async (req, res) => {
     }
 
     console.log(`✅ New ${userRole} registered:`, newUser.line_uid);
+
+    // Link Rich Menu for new user based on role so they see it right after registration
+    await linkRichMenu(newUser.line_uid, newUser.user_role);
 
     res.status(201).json({
       success: true,
@@ -913,6 +919,9 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
     }
 
     console.log(`✅ User ${lineUid} role changed to: ${role}`);
+
+    // Switch Rich Menu so the user sees the menu for their new role
+    await switchRichMenu(lineUid, role);
 
     res.json({
       success: true,
