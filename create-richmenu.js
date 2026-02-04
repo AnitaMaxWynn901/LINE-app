@@ -1,3 +1,9 @@
+/**
+ * Creates Rich Menus on LINE (user, shop_master, admin).
+ * Editing this file does NOT change menus already on LINE. To apply changes:
+ * - For shop_master only: node update-shop-richmenu.js
+ * - For all menus: delete existing in LINE Console, then run this script, update index.js IDs, upload images, run force-link-all-users.js
+ */
 require("dotenv").config();
 const line = require("@line/bot-sdk");
 

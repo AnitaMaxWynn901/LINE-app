@@ -285,9 +285,6 @@ app.post("/api/register", async (req, res) => {
 
     console.log("✅ New user registered:", newUser.line_uid);
 
-    // Link Rich Menu for new user (role: user) so they see it right after registration
-    await linkRichMenu(newUser.line_uid, "user");
-
     res.status(201).json({
       success: true,
       message: "🎉 Registration Successful!",
@@ -388,9 +385,6 @@ app.post("/api/register-admin", async (req, res) => {
 
     console.log(`✅ New ${userRole} registered:`, newUser.line_uid);
 
-    // Link Rich Menu for new user based on role so they see it right after registration
-    await linkRichMenu(newUser.line_uid, newUser.user_role);
-
     res.status(201).json({
       success: true,
       message: `🎉 Registration Successful as ${userRole}!`,
@@ -484,103 +478,6 @@ app.get("/api/user/:lineUid", async (req, res) => {
       success: false,
       message: "Server error",
       error: error.message,
-    });
-  }
-});
-
-// ============================================
-// MENU ITEMS (for users + shop master edit)
-// Table: menu_items (item_id text PK, name text, price numeric, description text, sort_order int)
-// ============================================
-
-const DEFAULT_MENU_ITEMS = [
-  { item_id: "salmon", name: "Salmon Sushi", price: 12, description: "Fresh Norwegian salmon", sort_order: 1 },
-  { item_id: "tuna", name: "Tuna Sushi", price: 15, description: "Premium bluefin tuna", sort_order: 2 },
-  { item_id: "unagi", name: "Unagi Sushi", price: 18, description: "Grilled freshwater eel", sort_order: 3 },
-];
-
-// Get menu items (public – used by welcome-app and shop-menu)
-app.get("/api/menu/items", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("menu_items")
-      .select("item_id, name, price, description, sort_order")
-      .order("sort_order", { ascending: true });
-
-    if (error) {
-      console.log("⚠️ menu_items table missing or error, using defaults:", error.message);
-      return res.json({ success: true, data: DEFAULT_MENU_ITEMS });
-    }
-    if (!data || data.length === 0) {
-      return res.json({ success: true, data: DEFAULT_MENU_ITEMS });
-    }
-    res.json({ success: true, data });
-  } catch (err) {
-    console.error("❌ GET menu items error:", err);
-    res.json({ success: true, data: DEFAULT_MENU_ITEMS });
-  }
-});
-
-// Update a menu item (shop_master or admin only)
-app.put("/api/shop/menu/items/:itemId", async (req, res) => {
-  try {
-    const { itemId } = req.params;
-    const { lineUid, name, price } = req.body;
-
-    if (!lineUid || !name || price == null) {
-      return res.status(400).json({
-        success: false,
-        message: "lineUid, name and price are required.",
-      });
-    }
-
-    const priceNum = Number(price);
-    if (isNaN(priceNum) || priceNum < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Price must be a non-negative number.",
-      });
-    }
-
-    const { data: users } = await supabase
-      .from("users")
-      .select("user_role")
-      .eq("line_uid", lineUid);
-
-    if (!users || users.length === 0) {
-      return res.status(404).json({ success: false, message: "User not found." });
-    }
-    const role = users[0].user_role;
-    if (role !== "shop_master" && role !== "admin") {
-      return res.status(403).json({ success: false, message: "Only Shop Master or Admin can edit menu." });
-    }
-
-    const { data: updated, error } = await supabase
-      .from("menu_items")
-      .upsert(
-        { item_id: itemId, name: name.trim(), price: priceNum },
-        { onConflict: "item_id" }
-      )
-      .select()
-      .single();
-
-    if (error) {
-      console.error("❌ Menu item update error:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to update menu item. Ensure table menu_items exists.",
-        error: error.message,
-      });
-    }
-
-    console.log(`✅ Menu item updated: ${itemId} -> ${name} $${priceNum}`);
-    res.json({ success: true, data: updated });
-  } catch (err) {
-    console.error("❌ PUT menu item error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: err.message,
     });
   }
 });
@@ -1017,9 +914,6 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
 
     console.log(`✅ User ${lineUid} role changed to: ${role}`);
 
-    // Switch Rich Menu so the user sees the menu for their new role
-    await switchRichMenu(lineUid, role);
-
     res.json({
       success: true,
       message: `User role updated to ${role}`,
@@ -1151,6 +1045,375 @@ app.get("/api/admin/statistics", async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// ============================================
+// MENU MANAGEMENT API ENDPOINTS
+// ============================================
+
+// Get all menu items (public - anyone can view)
+app.get("/api/menu/items", async (req, res) => {
+  try {
+    const { data: items, error } = await supabase
+      .from("menu_items")
+      .select("*")
+      .eq("is_available", true)
+      .order("item_id", { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      count: items ? items.length : 0,
+      data: items || [],
+    });
+  } catch (error) {
+    console.error("❌ Get menu items error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch menu items",
+      error: error.message,
+    });
+  }
+});
+
+// Get single menu item by ID
+app.get("/api/menu/items/:itemId", async (req, res) => {
+  try {
+    const { itemId } = req.params;
+
+    const { data: item, error } = await supabase
+      .from("menu_items")
+      .select("*")
+      .eq("item_id", itemId)
+      .single();
+
+    if (error) throw error;
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu item not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: item,
+    });
+  } catch (error) {
+    console.error("❌ Get menu item error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch menu item",
+      error: error.message,
+    });
+  }
+});
+
+// Update menu item (Shop Master/Admin only)
+app.put("/api/shop/menu/items/:itemId", async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { lineUid, name, price, description } = req.body;
+
+    // Validate required fields
+    if (!lineUid) {
+      return res.status(400).json({
+        success: false,
+        message: "LINE UID is required",
+      });
+    }
+
+    if (!name || price === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and price are required",
+      });
+    }
+
+    // Validate price
+    if (isNaN(price) || price < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Price must be a non-negative number",
+      });
+    }
+
+    // Check user role
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("user_role, display_name")
+      .eq("line_uid", lineUid)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.user_role !== "shop_master" && user.user_role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Shop Master or Admin only.",
+      });
+    }
+
+    // Update menu item
+    const updateData = {
+      name: name.trim(),
+      price: parseFloat(price),
+    };
+
+    if (description !== undefined) {
+      updateData.description = description.trim() || null;
+    }
+
+    const { data: updatedItem, error } = await supabase
+      .from("menu_items")
+      .update(updateData)
+      .eq("item_id", itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(
+      `✅ Menu item ${itemId} updated by ${user.display_name} (${lineUid})`
+    );
+
+    res.json({
+      success: true,
+      message: "Menu item updated successfully",
+      data: updatedItem,
+    });
+  } catch (error) {
+    console.error("❌ Update menu item error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update menu item. Ensure table menu_items exists.",
+      error: error.message,
+    });
+  }
+});
+
+// Add new menu item (Shop Master/Admin only)
+app.post("/api/shop/menu/items", async (req, res) => {
+  try {
+    const { lineUid, name, price, description, category } = req.body;
+
+    // Validate required fields
+    if (!lineUid || !name || price === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "LINE UID, name, and price are required",
+      });
+    }
+
+    // Validate price
+    if (isNaN(price) || price < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Price must be a non-negative number",
+      });
+    }
+
+    // Check user role
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("user_role, display_name")
+      .eq("line_uid", lineUid)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.user_role !== "shop_master" && user.user_role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Shop Master or Admin only.",
+      });
+    }
+
+    // Insert new menu item
+    const { data: newItem, error } = await supabase
+      .from("menu_items")
+      .insert([
+        {
+          name: name.trim(),
+          price: parseFloat(price),
+          description: description ? description.trim() : null,
+          category: category || "sushi",
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(
+      `✅ New menu item created by ${user.display_name} (${lineUid}): ${newItem.name}`
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Menu item created successfully",
+      data: newItem,
+    });
+  } catch (error) {
+    console.error("❌ Create menu item error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create menu item",
+      error: error.message,
+    });
+  }
+});
+
+// Delete menu item - Soft delete (Shop Master/Admin only)
+app.delete("/api/shop/menu/items/:itemId", async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { lineUid } = req.body;
+
+    if (!lineUid) {
+      return res.status(400).json({
+        success: false,
+        message: "LINE UID is required",
+      });
+    }
+
+    // Check user role
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("user_role, display_name")
+      .eq("line_uid", lineUid)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.user_role !== "shop_master" && user.user_role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Shop Master or Admin only.",
+      });
+    }
+
+    // Soft delete - set is_available to false
+    const { data: deletedItem, error } = await supabase
+      .from("menu_items")
+      .update({ is_available: false })
+      .eq("item_id", itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(
+      `✅ Menu item ${itemId} deleted by ${user.display_name} (${lineUid})`
+    );
+
+    res.json({
+      success: true,
+      message: "Menu item deleted successfully",
+      data: deletedItem,
+    });
+  } catch (error) {
+    console.error("❌ Delete menu item error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete menu item",
+      error: error.message,
+    });
+  }
+});
+
+// Toggle menu item availability (Shop Master/Admin only)
+app.patch("/api/shop/menu/items/:itemId/toggle", async (req, res) => {
+  try {
+    const { itemId } = req.params;
+    const { lineUid } = req.body;
+
+    if (!lineUid) {
+      return res.status(400).json({
+        success: false,
+        message: "LINE UID is required",
+      });
+    }
+
+    // Check user role
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("user_role")
+      .eq("line_uid", lineUid)
+      .single();
+
+    if (userError || !user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (user.user_role !== "shop_master" && user.user_role !== "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Shop Master or Admin only.",
+      });
+    }
+
+    // Get current item
+    const { data: currentItem } = await supabase
+      .from("menu_items")
+      .select("is_available")
+      .eq("item_id", itemId)
+      .single();
+
+    if (!currentItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu item not found",
+      });
+    }
+
+    // Toggle availability
+    const { data: updatedItem, error } = await supabase
+      .from("menu_items")
+      .update({ is_available: !currentItem.is_available })
+      .eq("item_id", itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(
+      `✅ Menu item ${itemId} toggled to ${updatedItem.is_available}`
+    );
+
+    res.json({
+      success: true,
+      message: `Menu item ${updatedItem.is_available ? "enabled" : "disabled"}`,
+      data: updatedItem,
+    });
+  } catch (error) {
+    console.error("❌ Toggle menu item error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to toggle menu item",
       error: error.message,
     });
   }

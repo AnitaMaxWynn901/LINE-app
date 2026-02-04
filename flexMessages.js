@@ -317,8 +317,100 @@ function getOrderConfirmation(orderDetails, totalAmount, pointsEarned) {
   };
 }
 
+// Pending orders for Shop Master (carousel of order cards + "Mark completed" postback)
+const SHOP_DASHBOARD_LIFF = "https://liff.line.me/2008995030-d47ws6I6";
+
+function getPendingOrdersCarousel(orders) {
+  const maxBubbles = 12;
+  const bubbles = orders.slice(0, maxBubbles).map((o) => ({
+    type: "bubble",
+    size: "micro",
+    body: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "text",
+          text: `Order #${o.order_id}`,
+          size: "sm",
+          weight: "bold",
+        },
+        { type: "text", text: `👤 ${o.display_name}`, size: "xs", color: "#666666" },
+        { type: "text", text: `🍣 ${o.order_details}`, size: "xs", color: "#666666", wrap: true },
+        {
+          type: "box",
+          layout: "baseline",
+          contents: [
+            { type: "text", text: "💰", size: "xs", flex: 0 },
+            { type: "text", text: `$${o.total_amount}`, size: "xs", weight: "bold" },
+          ],
+        },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          height: "sm",
+          action: {
+            type: "postback",
+            label: "Mark completed",
+            data: `complete_order_${o.order_id}`,
+          },
+        },
+      ],
+    },
+  }));
+
+  const contents = {
+    type: "carousel",
+    contents: bubbles,
+  };
+
+  return {
+    type: "flex",
+    altText: `You have ${orders.length} pending order(s).`,
+    contents,
+  };
+}
+
+function getNoPendingOrdersCard() {
+  return {
+    type: "flex",
+    altText: "No pending orders",
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          { type: "text", text: "📦 Pending orders", size: "md", weight: "bold" },
+          { type: "text", text: "No pending orders right now.", size: "sm", color: "#666666", margin: "md" },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            height: "sm",
+            action: { type: "uri", label: "Open Dashboard", uri: SHOP_DASHBOARD_LIFF },
+          },
+        ],
+      },
+    },
+  };
+}
+
 module.exports = {
   getWelcomeCard,
   getMenuCard,
   getOrderConfirmation,
+  getPendingOrdersCarousel,
+  getNoPendingOrdersCard,
 };
