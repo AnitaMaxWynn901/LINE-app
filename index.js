@@ -923,6 +923,8 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
     }
 
     console.log(`✅ User ${lineUid} role changed to: ${role}`);
+    
+    await switchRichMenu(lineUid, role);
 
     res.json({
       success: true,

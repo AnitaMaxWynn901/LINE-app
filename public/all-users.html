@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>All Users</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding-bottom: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-card h3 {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #f5576c;
+        }
+
+        .container {
+            padding: 0 16px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #f5576c;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 10px 16px;
+            border: none;
+            background: white;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .user-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .user-name {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .role-badge {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        .role-user {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .role-shop_master {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .role-admin {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .user-details {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .user-details div {
+            margin-bottom: 4px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #f5576c;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>👥 All Users</h1>
+        <p>User Management</p>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading users...</p>
+    </div>
+
+    <div id="app" class="hidden">
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Users</h3>
+                <div class="value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Customers</h3>
+                <div class="value" id="statUsers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Masters</h3>
+                <div class="value" id="statMasters">0</div>
+            </div>
+        </div>
+
+        <div class="container">
+            <input type="text" class="search-box" id="searchInput" placeholder="Search users..." oninput="filterUsers()" />
+
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('all', event)">All</button>
+                <button class="tab" onclick="switchTab('user', event)">Customers</button>
+                <button class="tab" onclick="switchTab('shop_master', event)">Masters</button>
+                <button class="tab" onclick="switchTab('admin', event)">Admins</button>
+            </div>
+
+            <div id="usersContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        const LIFF_ID = '2008995030-RIMwbPZT'; // Replace with actual LIFF ID
+        const API_URL = 'https://line-app-94vb.onrender.com';
+
+        let allUsers = [];
+        let filteredUsers = [];
+        let currentFilter = 'all';
+
+        async function init() {
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) return liff.login();
+
+            const profile = await liff.getProfile();
+            const userRes = await fetch(`${API_URL}/api/user/${profile.userId}`);
+            const user = await userRes.json();
+
+            if (user.userRole !== 'admin') {
+                alert('❌ Admin access only');
+                return liff.closeWindow();
+            }
+
+            await loadUsers();
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+        }
+
+        async function loadUsers() {
+            const res = await fetch(`${API_URL}/api/admin/users`);
+            const data = await res.json();
+            allUsers = data.data || [];
+            filteredUsers = [...allUsers];
+
+            updateStats();
+            displayUsers();
+        }
+
+        function updateStats() {
+            const total = allUsers.length;
+            const users = allUsers.filter(u => u.user_role === 'user').length;
+            const masters = allUsers.filter(u => u.user_role === 'shop_master').length;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statUsers').textContent = users;
+            document.getElementById('statMasters').textContent = masters;
+        }
+
+        function switchTab(role, event) {
+            currentFilter = role;
+
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            filterUsers();
+        }
+
+        function filterUsers() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            filteredUsers = allUsers.filter(u => {
+                const matchRole = currentFilter === 'all' || u.user_role === currentFilter;
+                const matchSearch =
+                    u.display_name.toLowerCase().includes(search) ||
+                    u.phone_number.toLowerCase().includes(search) ||
+                    (u.email && u.email.toLowerCase().includes(search));
+
+                return matchRole && matchSearch;
+            });
+
+            displayUsers();
+        }
+
+        function displayUsers() {
+            const container = document.getElementById('usersContainer');
+
+            if (!filteredUsers.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">👤</div>
+                        <p>No users found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredUsers.map(u => `
+                <div class="user-card">
+                    <div class="user-header">
+                        <div class="user-name">${u.display_name}</div>
+                        <div class="role-badge role-${u.user_role}">${u.user_role.replace('_', ' ').toUpperCase()}</div>
+                    </div>
+                    <div class="user-details">
+                        <div>📱 ${u.phone_number}</div>
+                        ${u.email ? `<div>📧 ${u.email}</div>` : ''}
+                        <div>💎 ${u.points} points</div>
+                        <div>📅 Joined ${new Date(u.registered_at).toLocaleDateString()}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>
