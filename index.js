@@ -93,10 +93,10 @@ async function linkRichMenu(lineUid, role) {
   }
 
   try {
-    await lineClient.linkUserRichMenu(lineUid, richMenuId);
+    await lineClient.linkRichMenuIdToUser(lineUid, richMenuId);
     console.log(`✅ Rich Menu linked to ${lineUid} (${role})`);
   } catch (error) {
-    console.error("❌ Failed to link Rich Menu:", error);
+    console.error("❌ Failed to link Rich Menu:", error.message);
   }
 }
 
@@ -112,16 +112,19 @@ async function switchRichMenu(lineUid, newRole) {
   }
 
   try {
+    // Unlink old menu (safe even if none exists)
     try {
-      await lineClient.unlinkUserRichMenu(lineUid);
-    } catch (unlinkError) {
-      console.log("No existing Rich Menu to unlink");
+      await lineClient.unlinkRichMenuIdFromUser(lineUid);
+      console.log("🔄 Old Rich Menu unlinked");
+    } catch {
+      console.log("ℹ️ No existing Rich Menu to unlink");
     }
 
-    await lineClient.linkUserRichMenu(lineUid, richMenuId);
-    console.log(`✅ Rich Menu switched for ${lineUid} to ${newRole}`);
+    // Link new menu
+    await lineClient.linkRichMenuIdToUser(lineUid, richMenuId);
+    console.log(`✅ Rich Menu switched to ${newRole}`);
   } catch (error) {
-    console.error("❌ Failed to switch Rich Menu:", error);
+    console.error("❌ Failed to switch Rich Menu:", error.message);
   }
 }
 
