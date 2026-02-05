@@ -48,9 +48,9 @@ const LIFF_IDS = {
 };
 
 const RICH_MENUS = {
-  user: "richmenu-7e927704589f3fdc528d2109f0eba524",
-  shop_master: "richmenu-8bcf53dee6047027c4535960312476f3",
-  admin: "richmenu-85032b9ca1e7ef1295865003e6cd303e",
+  user: "richmenu-ca98b1782a9bfbd74a760da174ef5d89",
+  shop_master: "richmenu-929f0718536125629c13a665dda2b321",
+  admin: "richmenu-a904cb094de54137f38041ff00671aff",
 };
 
 // Initialize Supabase client
