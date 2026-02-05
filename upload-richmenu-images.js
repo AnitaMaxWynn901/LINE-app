@@ -22,15 +22,15 @@ const client = new line.Client({
 // ===============================
 const MENUS = {
   user: {
-    id: "richmenu-4c2fb5baae65f486266f6dbb45566e4b",
+    id: "richmenu-ca98b1782a9bfbd74a760da174ef5d89",
     image: "./richmenu-images/user.png",
   },
   shop_master: {
-    id: "richmenu-e6572e43832cb375bc321cb4f1875296",
+    id: "richmenu-929f0718536125629c13a665dda2b321",
     image: "./richmenu-images/shop_master.png",
   },
   admin: {
-    id: "richmenu-1f7cc3a53633cf2fbf9c3a158d1fb003",
+    id: "richmenu-a904cb094de54137f38041ff00671aff",
     image: "./richmenu-images/admin.png",
   },
 };
