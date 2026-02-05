@@ -30,10 +30,27 @@ const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: lineConfig.channelAccessToken,
 });
 
+// ============================================
+// 🎯 LIFF IDS - MAPPED FROM YOUR SCREENSHOT
+// ============================================
+const LIFF_IDS = {
+  HELP: "2008995030-skHhHuZ3",
+  USER_PROFILE: "2008995030-0uvyWNBb",
+  USER_POINTS: "2008995030-gyFJjoF0",
+  ANALYTICS: "2008995030-t2KDZKUZ",
+  ALL_USERS: "2008995030-RIMwbPZT",
+  SHOP_MENU: "2008995030-4EY711eF",
+  ADMIN_DASHBOARD: "2008995030-vfYwWQCF",
+  USER_DASHBOARD: "2008995030-RawExQeM",
+  ADMIN_REGISTRATION: "2008995030-VESHc83X",
+  SHOP_DASHBOARD: "2008995030-d47ws6I6",
+  WELCOME_APP: "2008995030-W39gBpe4",
+};
+
 const RICH_MENUS = {
-  user: "richmenu-7e927704589f3fdc528d2109f0eba524", // Replace after creation
-  shop_master: "richmenu-8bcf53dee6047027c4535960312476f3", // Replace after creation
-  admin: "richmenu-85032b9ca1e7ef1295865003e6cd303e", // Replace after creation
+  user: "richmenu-7e927704589f3fdc528d2109f0eba524",
+  shop_master: "richmenu-8bcf53dee6047027c4535960312476f3",
+  admin: "richmenu-85032b9ca1e7ef1295865003e6cd303e",
 };
 
 // Initialize Supabase client
@@ -61,7 +78,7 @@ app.post("/webhook", line.middleware(lineConfig), async (req, res) => {
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (for LIFF app later)
+// Serve static files
 app.use(express.static("public"));
 
 /**
@@ -76,7 +93,6 @@ async function linkRichMenu(lineUid, role) {
   }
 
   try {
-    // ✅ FIXED: Use linkUserRichMenu (SDK v9 method)
     await lineClient.linkUserRichMenu(lineUid, richMenuId);
     console.log(`✅ Rich Menu linked to ${lineUid} (${role})`);
   } catch (error) {
@@ -96,19 +112,13 @@ async function switchRichMenu(lineUid, newRole) {
   }
 
   try {
-    // Try to unlink old Rich Menu (might not exist for new users)
     try {
-      // ✅ FIXED: Use unlinkUserRichMenu (SDK v9 method)
       await lineClient.unlinkUserRichMenu(lineUid);
     } catch (unlinkError) {
-      // Ignore error if no Rich Menu was linked
       console.log("No existing Rich Menu to unlink");
     }
 
-    // Link new Rich Menu
-    // ✅ FIXED: Use linkUserRichMenu (SDK v9 method)
     await lineClient.linkUserRichMenu(lineUid, richMenuId);
-
     console.log(`✅ Rich Menu switched for ${lineUid} to ${newRole}`);
   } catch (error) {
     console.error("❌ Failed to switch Rich Menu:", error);
@@ -118,12 +128,11 @@ async function switchRichMenu(lineUid, newRole) {
 async function handleLineEvent(event) {
   console.log("📨 LINE Event:", event.type);
 
-  // Handle FOLLOW event (when user adds bot as friend)
+  // Handle FOLLOW event
   if (event.type === "follow") {
     const userId = event.source.userId;
     console.log(`✅ New follower: ${userId}`);
 
-    // EVERYONE gets welcome card when they first add the bot
     return lineClient.replyMessage({
       replyToken: event.replyToken,
       messages: [getWelcomeCard()],
@@ -146,7 +155,6 @@ async function handleLineEvent(event) {
     const isRegistered = users && users.length > 0;
     const user = isRegistered ? users[0] : null;
 
-    // Convert to lowercase for case-insensitive matching
     const lowerMessage = userMessage.toLowerCase();
 
     // ============================================
@@ -162,7 +170,6 @@ async function handleLineEvent(event) {
         });
       }
 
-      // Get all shop masters
       const { data: shopMasters } = await supabase
         .from("users")
         .select("*")
@@ -181,7 +188,6 @@ async function handleLineEvent(event) {
         });
       }
 
-      // Create carousel of shop master cards (max 12)
       const bubbles = shopMasters.slice(0, 12).map((sm) => ({
         type: "bubble",
         size: "micro",
@@ -270,7 +276,6 @@ async function handleLineEvent(event) {
         });
       }
 
-      // TODO: Replace YOUR_USERS_LIFF_ID with actual LIFF ID from LINE Console
       return lineClient.replyMessage({
         replyToken: event.replyToken,
         messages: [
@@ -309,8 +314,7 @@ async function handleLineEvent(event) {
                     action: {
                       type: "uri",
                       label: "Open User List",
-                      // TODO: Replace with your All Users LIFF ID
-                      uri: "https://liff.line.me/2008995030-RIMwbPZT",
+                      uri: `https://liff.line.me/${LIFF_IDS.ALL_USERS}`,
                     },
                   },
                 ],
@@ -330,7 +334,6 @@ async function handleLineEvent(event) {
         });
       }
 
-      // Get analytics data
       const { data: allUsers } = await supabase.from("users").select("*");
       const { data: allOrders } = await supabase.from("orders").select("*");
 
@@ -351,7 +354,6 @@ async function handleLineEvent(event) {
           ?.filter((o) => o.order_status === "completed")
           .reduce((sum, o) => sum + parseFloat(o.total_amount), 0) || 0;
 
-      // Today's stats
       const today = new Date().toISOString().split("T")[0];
       const todayOrders =
         allOrders?.filter((o) => o.order_date.startsWith(today)) || [];
@@ -388,7 +390,6 @@ async function handleLineEvent(event) {
                     margin: "lg",
                     spacing: "sm",
                     contents: [
-                      // Users Section
                       {
                         type: "text",
                         text: "👥 Users",
@@ -459,7 +460,6 @@ async function handleLineEvent(event) {
                         type: "separator",
                         margin: "md",
                       },
-                      // Orders Section
                       {
                         type: "text",
                         text: "📦 Orders",
@@ -533,7 +533,6 @@ async function handleLineEvent(event) {
                         type: "separator",
                         margin: "md",
                       },
-                      // Revenue Section
                       {
                         type: "text",
                         text: "💰 Revenue",
@@ -597,8 +596,356 @@ async function handleLineEvent(event) {
                     action: {
                       type: "uri",
                       label: "Full Dashboard",
-                      // Opens existing admin dashboard (or create new analytics LIFF)
-                      uri: "https://liff.line.me/2008995030-BmX1RlOW",
+                      uri: `https://liff.line.me/${LIFF_IDS.ANALYTICS}`,
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    // ============================================
+    // 👨‍🍳 SHOP MASTER RICH MENU HANDLERS
+    // ============================================
+
+    // PENDING ORDERS BUTTON
+    if (lowerMessage === "pending orders") {
+      if (
+        !user ||
+        (user.user_role !== "shop_master" && user.user_role !== "admin")
+      ) {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: "text", text: "❌ Shop Master access only." }],
+        });
+      }
+
+      const { data: pendingOrders } = await supabase
+        .from("orders")
+        .select(
+          `
+          *,
+          users (
+            display_name,
+            phone_number
+          )
+        `
+        )
+        .eq("order_status", "pending")
+        .order("order_date", { ascending: true })
+        .limit(12);
+
+      if (!pendingOrders || pendingOrders.length === 0) {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [getNoPendingOrdersCard()],
+        });
+      }
+
+      // Format for carousel
+      const formattedOrders = pendingOrders.map((o) => ({
+        ...o,
+        display_name: o.users?.display_name || "Unknown",
+      }));
+
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [getPendingOrdersCarousel(formattedOrders)],
+      });
+    }
+
+    // SETTINGS BUTTON
+    if (lowerMessage === "settings") {
+      if (
+        !user ||
+        (user.user_role !== "shop_master" && user.user_role !== "admin")
+      ) {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: "text", text: "❌ Shop Master access only." }],
+        });
+      }
+
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "text",
+            text: "⚙️ Settings\n\n• Edit menu items\n• View dashboard\n• Manage orders\n\nUse the Rich Menu buttons to access features.",
+          },
+        ],
+      });
+    }
+
+    // ============================================
+    // 👤 USER RICH MENU HANDLERS
+    // ============================================
+
+    // MY POINTS
+    if (lowerMessage === "my points") {
+      if (!isRegistered) {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [
+            { type: "text", text: "Please register first to earn points! 🎁" },
+          ],
+        });
+      }
+
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "flex",
+            altText: "My Points",
+            contents: {
+              type: "bubble",
+              body: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "text",
+                    text: "💎 Your Points",
+                    size: "xl",
+                    weight: "bold",
+                  },
+                  {
+                    type: "text",
+                    text: `${user.points} points`,
+                    size: "xxl",
+                    weight: "bold",
+                    color: "#06c755",
+                    margin: "md",
+                  },
+                  {
+                    type: "separator",
+                    margin: "lg",
+                  },
+                  {
+                    type: "text",
+                    text: "Keep ordering to earn more! 🍣",
+                    size: "sm",
+                    color: "#999999",
+                    margin: "lg",
+                  },
+                ],
+              },
+              footer: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "button",
+                    style: "primary",
+                    action: {
+                      type: "uri",
+                      label: "View Details",
+                      uri: `https://liff.line.me/${LIFF_IDS.USER_POINTS}`,
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    // MY PROFILE
+    if (lowerMessage === "my profile") {
+      if (!isRegistered) {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: "text", text: "Please register first! 🎁" }],
+        });
+      }
+
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "flex",
+            altText: "My Profile",
+            contents: {
+              type: "bubble",
+              body: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "text",
+                    text: "👤 My Profile",
+                    size: "xl",
+                    weight: "bold",
+                  },
+                  {
+                    type: "separator",
+                    margin: "lg",
+                  },
+                  {
+                    type: "box",
+                    layout: "vertical",
+                    margin: "lg",
+                    spacing: "sm",
+                    contents: [
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Name:",
+                            size: "sm",
+                            color: "#999999",
+                            flex: 1,
+                          },
+                          {
+                            type: "text",
+                            text: user.display_name,
+                            size: "sm",
+                            flex: 2,
+                            wrap: true,
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Phone:",
+                            size: "sm",
+                            color: "#999999",
+                            flex: 1,
+                          },
+                          {
+                            type: "text",
+                            text: user.phone_number,
+                            size: "sm",
+                            flex: 2,
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Email:",
+                            size: "sm",
+                            color: "#999999",
+                            flex: 1,
+                          },
+                          {
+                            type: "text",
+                            text: user.email || "Not set",
+                            size: "sm",
+                            flex: 2,
+                            wrap: true,
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Points:",
+                            size: "sm",
+                            color: "#999999",
+                            flex: 1,
+                          },
+                          {
+                            type: "text",
+                            text: `${user.points} pts`,
+                            size: "sm",
+                            flex: 2,
+                            color: "#06c755",
+                            weight: "bold",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              footer: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "button",
+                    style: "primary",
+                    action: {
+                      type: "uri",
+                      label: "View Full Profile",
+                      uri: `https://liff.line.me/${LIFF_IDS.USER_PROFILE}`,
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    // CONTACT
+    if (lowerMessage === "contact") {
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [getContactCard()],
+      });
+    }
+
+    // HELP
+    if (lowerMessage === "help") {
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "flex",
+            altText: "Help Center",
+            contents: {
+              type: "bubble",
+              body: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "text",
+                    text: "❓ Help Center",
+                    size: "xl",
+                    weight: "bold",
+                  },
+                  {
+                    type: "text",
+                    text: "Get help with ordering and using Sushi Cafe",
+                    size: "sm",
+                    color: "#666666",
+                    margin: "md",
+                    wrap: true,
+                  },
+                ],
+              },
+              footer: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "button",
+                    style: "primary",
+                    action: {
+                      type: "uri",
+                      label: "Open Help Center",
+                      uri: `https://liff.line.me/${LIFF_IDS.HELP}`,
                     },
                   },
                 ],
@@ -613,20 +960,17 @@ async function handleLineEvent(event) {
     // EXISTING MESSAGE HANDLERS
     // ============================================
 
-    // Handle different message types
     if (
       lowerMessage.includes("menu") ||
       lowerMessage.includes("order") ||
       lowerMessage.includes("start")
     ) {
       if (isRegistered) {
-        // Registered user - show personalized menu card
         return lineClient.replyMessage({
           replyToken: event.replyToken,
           messages: [getMenuCard(user.display_name, user.points)],
         });
       } else {
-        // Not registered - show welcome card with register button
         return lineClient.replyMessage({
           replyToken: event.replyToken,
           messages: [getWelcomeCard()],
@@ -634,31 +978,7 @@ async function handleLineEvent(event) {
       }
     }
 
-    // CONTACT
-    if (userMessage.toLowerCase() === "contact") {
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [getContactCard()],
-      });
-    }
-
-    // Handle order confirmation messages (from LIFF app)
-    if (userMessage.includes("🍣 ORDER")) {
-      console.log("📦 Order message detected");
-
-      // Extract order details (we'll improve this later)
-      return lineClient.replyMessage({
-        replyToken: event.replyToken,
-        messages: [
-          {
-            type: "text",
-            text: "✅ Order received! Processing your order...",
-          },
-        ],
-      });
-    }
-
-    // Default response - show welcome card to everyone
+    // Default response
     if (isRegistered) {
       return lineClient.replyMessage({
         replyToken: event.replyToken,
@@ -677,6 +997,45 @@ async function handleLineEvent(event) {
     }
   }
 
+  // Handle POSTBACK events (for order completion)
+  if (event.type === "postback") {
+    const data = event.postback.data;
+
+    if (data.startsWith("complete_order_")) {
+      const orderId = data.replace("complete_order_", "");
+
+      try {
+        const { error } = await supabase
+          .from("orders")
+          .update({ order_status: "completed" })
+          .eq("order_id", orderId);
+
+        if (error) throw error;
+
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [
+            {
+              type: "text",
+              text: `✅ Order #${orderId} marked as completed!`,
+            },
+          ],
+        });
+      } catch (error) {
+        console.error("Complete order error:", error);
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [
+            {
+              type: "text",
+              text: "❌ Failed to complete order. Please try again.",
+            },
+          ],
+        });
+      }
+    }
+  }
+
   return Promise.resolve(null);
 }
 
@@ -684,7 +1043,6 @@ async function handleLineEvent(event) {
 // REST API ENDPOINTS
 // ============================================
 
-// Test endpoint
 app.get("/", (req, res) => {
   res.json({
     message: "🍣 Sushi Cafe API is running",
@@ -693,12 +1051,11 @@ app.get("/", (req, res) => {
   });
 });
 
-// Registration endpoint (normal users)
+// Registration endpoint
 app.post("/api/register", async (req, res) => {
   try {
     const { lineUid, displayName, phoneNumber, email } = req.body;
 
-    // Validation
     if (!lineUid || !displayName || !phoneNumber) {
       return res.status(400).json({
         success: false,
@@ -713,7 +1070,6 @@ app.post("/api/register", async (req, res) => {
       });
     }
 
-    // Check if user already registered
     const { data: existingUsers } = await supabase
       .from("users")
       .select("*")
@@ -726,7 +1082,6 @@ app.post("/api/register", async (req, res) => {
       });
     }
 
-    // Check if phone number already used
     const { data: existingPhone } = await supabase
       .from("users")
       .select("*")
@@ -739,7 +1094,6 @@ app.post("/api/register", async (req, res) => {
       });
     }
 
-    // Register new user
     const { data: newUser, error: insertError } = await supabase
       .from("users")
       .insert([
@@ -759,7 +1113,6 @@ app.post("/api/register", async (req, res) => {
       throw insertError;
     }
 
-    // 🔥 THIS IS THE KEY LINE
     await linkRichMenu(newUser.line_uid, newUser.user_role);
 
     console.log("✅ User registered + Rich Menu linked:", newUser.line_uid);
@@ -784,12 +1137,11 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// Admin registration endpoint (with role selection)
+// Admin registration endpoint
 app.post("/api/register-admin", async (req, res) => {
   try {
     const { lineUid, displayName, phoneNumber, email, userRole } = req.body;
 
-    // Validation
     if (!lineUid || !displayName || !phoneNumber || !userRole) {
       return res.status(400).json({
         success: false,
@@ -804,7 +1156,6 @@ app.post("/api/register-admin", async (req, res) => {
       });
     }
 
-    // Validate role
     const validRoles = ["user", "shop_master", "admin"];
     if (!validRoles.includes(userRole)) {
       return res.status(400).json({
@@ -813,7 +1164,6 @@ app.post("/api/register-admin", async (req, res) => {
       });
     }
 
-    // Check if user already registered
     const { data: existingUsers } = await supabase
       .from("users")
       .select("*")
@@ -826,8 +1176,6 @@ app.post("/api/register-admin", async (req, res) => {
       });
     }
 
-    // Check if phone number already used (only enforce for regular users)
-    // Shop masters and admins can share phone numbers
     if (userRole === "user") {
       const { data: existingPhone } = await supabase
         .from("users")
@@ -842,7 +1190,6 @@ app.post("/api/register-admin", async (req, res) => {
       }
     }
 
-    // Register new user with specified role
     const { data: newUser, error: insertError } = await supabase
       .from("users")
       .insert([
@@ -862,7 +1209,6 @@ app.post("/api/register-admin", async (req, res) => {
       throw insertError;
     }
 
-    // 🔥 AUTO-LINK Rich Menu based on role
     await linkRichMenu(newUser.line_uid, newUser.user_role);
 
     console.log(`✅ ${userRole} registered + Rich Menu linked`);
@@ -892,17 +1238,12 @@ app.get("/api/user/:lineUid", async (req, res) => {
   try {
     const { lineUid } = req.params;
 
-    console.log("🔍 Looking for user:", lineUid);
-
     const { data: users, error } = await supabase
       .from("users")
       .select("*")
       .eq("line_uid", lineUid);
 
-    console.log("📊 Found:", users?.length || 0, "users");
-
     if (error) {
-      console.error("❌ Database error:", error);
       return res.status(500).json({
         success: false,
         message: "Database error",
@@ -919,7 +1260,6 @@ app.get("/api/user/:lineUid", async (req, res) => {
 
     const userData = users[0];
 
-    // ✅ COMMON PROFILE FIELDS (for ALL roles)
     const baseProfile = {
       success: true,
       userRole: userData.user_role,
@@ -930,32 +1270,23 @@ app.get("/api/user/:lineUid", async (req, res) => {
       registeredAt: userData.registered_at,
     };
 
-    // 🔧 ADMIN
     if (userData.user_role === "admin") {
-      console.log(`🔧 ADMIN Detected: ${userData.display_name}`);
       return res.json({
         ...baseProfile,
         message: "Admin access - Full control",
-        richMenu: "admin_menu_id",
       });
     }
 
-    // 👨‍🍳 SHOP MASTER
     if (userData.user_role === "shop_master") {
-      console.log(`👨‍🍳 SHOP MASTER Detected: ${userData.display_name}`);
       return res.json({
         ...baseProfile,
         message: "Shop Master access - Manage Restaurant",
-        richMenu: "shop_master_menu_id",
       });
     }
 
-    // 👤 USER
-    console.log(`👤 USER Detected: ${userData.display_name}`);
     return res.json({
       ...baseProfile,
       message: "Welcome Back!",
-      richMenu: "user_menu_id",
     });
   } catch (error) {
     console.error("❌ Get user error:", error);
@@ -979,7 +1310,6 @@ app.post("/api/orders", async (req, res) => {
       });
     }
 
-    // Check if user exists
     const { data: users } = await supabase
       .from("users")
       .select("*")
@@ -994,10 +1324,8 @@ app.post("/api/orders", async (req, res) => {
 
     const user = users[0];
 
-    // Calculate points ($10 = 1 point)
     const pointsEarned = Math.floor(totalAmount / 10);
 
-    // Create order
     const { data: newOrder, error: orderError } = await supabase
       .from("orders")
       .insert([
@@ -1016,7 +1344,6 @@ app.post("/api/orders", async (req, res) => {
       throw orderError;
     }
 
-    // Update user's total points
     const newTotalPoints = user.points + pointsEarned;
 
     const { error: updateError } = await supabase
@@ -1084,11 +1411,170 @@ app.get("/api/orders/user/:lineUid", async (req, res) => {
   }
 });
 
-// ============================================
-// ADMIN API ENDPOINTS
-// ============================================
+// User dashboard endpoint
+app.get("/api/dashboard/user/:lineUid", async (req, res) => {
+  try {
+    const { lineUid } = req.params;
 
-// Get all users (Admin only)
+    const { data: user } = await supabase
+      .from("users")
+      .select("*")
+      .eq("line_uid", lineUid)
+      .single();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const { data: orders } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("line_uid", lineUid)
+      .order("order_date", { ascending: false })
+      .limit(10);
+
+    const totalOrders = orders?.length || 0;
+    const completedOrders =
+      orders?.filter((o) => o.order_status === "completed").length || 0;
+    const totalSpent =
+      orders
+        ?.filter((o) => o.order_status === "completed")
+        .reduce((sum, o) => sum + parseFloat(o.total_amount), 0)
+        .toFixed(2) || "0.00";
+
+    res.json({
+      success: true,
+      data: {
+        user: {
+          displayName: user.display_name,
+          points: user.points,
+          phoneNumber: user.phone_number,
+          email: user.email,
+        },
+        statistics: {
+          totalOrders,
+          completedOrders,
+          totalSpent,
+        },
+        recentOrders: orders || [],
+      },
+    });
+  } catch (error) {
+    console.error("❌ User dashboard error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load dashboard",
+      error: error.message,
+    });
+  }
+});
+
+// Shop dashboard endpoint
+app.get("/api/dashboard/shop", async (req, res) => {
+  try {
+    const { data: orders } = await supabase
+      .from("orders")
+      .select(
+        `
+        *,
+        users (
+          display_name,
+          phone_number
+        )
+      `
+      )
+      .order("order_date", { ascending: false })
+      .limit(50);
+
+    const formattedOrders =
+      orders?.map((o) => ({
+        ...o,
+        display_name: o.users?.display_name || "Unknown",
+        phone_number: o.users?.phone_number || "",
+      })) || [];
+
+    const today = new Date().toISOString().split("T")[0];
+    const todayOrders = formattedOrders.filter((o) =>
+      o.order_date.startsWith(today)
+    );
+
+    const pendingOrders = formattedOrders.filter(
+      (o) => o.order_status === "pending"
+    ).length;
+    const totalRevenue = formattedOrders
+      .filter((o) => o.order_status === "completed")
+      .reduce((sum, o) => sum + parseFloat(o.total_amount), 0)
+      .toFixed(2);
+
+    const { data: users } = await supabase.from("users").select("*");
+    const totalCustomers =
+      users?.filter((u) => u.user_role === "user").length || 0;
+
+    res.json({
+      success: true,
+      data: {
+        statistics: {
+          pendingOrders,
+          todayOrders: todayOrders.length,
+          totalRevenue,
+          totalCustomers,
+        },
+        recentOrders: formattedOrders,
+      },
+    });
+  } catch (error) {
+    console.error("❌ Shop dashboard error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to load dashboard",
+      error: error.message,
+    });
+  }
+});
+
+// Update order status
+app.put("/api/orders/:orderId/status", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ["pending", "completed", "cancelled"];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
+    const { data: updatedOrder, error } = await supabase
+      .from("orders")
+      .update({ order_status: status })
+      .eq("order_id", orderId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: `Order status updated to ${status}`,
+      data: updatedOrder,
+    });
+  } catch (error) {
+    console.error("❌ Update order status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update order status",
+      error: error.message,
+    });
+  }
+});
+
+// ADMIN ENDPOINTS
+
 app.get("/api/admin/users", async (req, res) => {
   try {
     const { data: users, error } = await supabase
@@ -1113,7 +1599,6 @@ app.get("/api/admin/users", async (req, res) => {
   }
 });
 
-// Get all orders (Admin only)
 app.get("/api/admin/orders", async (req, res) => {
   try {
     const { data: orders, error } = await supabase
@@ -1146,13 +1631,11 @@ app.get("/api/admin/orders", async (req, res) => {
   }
 });
 
-// Update user role (Admin only)
 app.put("/api/admin/users/:lineUid/role", async (req, res) => {
   try {
     const { lineUid } = req.params;
     const { role } = req.body;
 
-    // Validate role
     const validRoles = ["user", "shop_master", "admin"];
     if (!role || !validRoles.includes(role)) {
       return res.status(400).json({
@@ -1161,7 +1644,6 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
       });
     }
 
-    // Update user role
     const { data: updatedUser, error } = await supabase
       .from("users")
       .update({ user_role: role })
@@ -1173,7 +1655,7 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
 
     console.log(`✅ User ${lineUid} role changed to: ${role}`);
 
-    // 🔥 AUTO-SWITCH Rich Menu when role changes
+    // 🔥 AUTO-SWITCH Rich Menu
     await switchRichMenu(lineUid, role);
 
     res.json({
@@ -1191,15 +1673,48 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
   }
 });
 
-// Delete user (Admin only)
+app.put("/api/admin/users/:lineUid/points", async (req, res) => {
+  try {
+    const { lineUid } = req.params;
+    const { points } = req.body;
+
+    if (points === undefined || isNaN(points) || points < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid points value",
+      });
+    }
+
+    const { data: updatedUser, error } = await supabase
+      .from("users")
+      .update({ points: parseInt(points) })
+      .eq("line_uid", lineUid)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Points updated successfully",
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error("❌ Update points error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update points",
+      error: error.message,
+    });
+  }
+});
+
 app.delete("/api/admin/users/:lineUid", async (req, res) => {
   try {
     const { lineUid } = req.params;
 
-    // Delete user's orders first (foreign key constraint)
     await supabase.from("orders").delete().eq("line_uid", lineUid);
 
-    // Delete user
     const { error } = await supabase
       .from("users")
       .delete()
@@ -1223,11 +1738,8 @@ app.delete("/api/admin/users/:lineUid", async (req, res) => {
   }
 });
 
-// ============================================
-// SHOP MASTER API ENDPOINTS
-// ============================================
+// SHOP MASTER ENDPOINTS
 
-// Get pending orders (Shop Master)
 app.get("/api/shop/orders/pending", async (req, res) => {
   try {
     const { data: orders, error } = await supabase
@@ -1261,13 +1773,11 @@ app.get("/api/shop/orders/pending", async (req, res) => {
   }
 });
 
-// Update order status (Shop Master)
 app.patch("/api/shop/orders/:orderId/status", async (req, res) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;
 
-    // Validate status
     const validStatuses = ["pending", "completed", "cancelled"];
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
@@ -1276,7 +1786,6 @@ app.patch("/api/shop/orders/:orderId/status", async (req, res) => {
       });
     }
 
-    // Update order status
     const { data: updatedOrder, error } = await supabase
       .from("orders")
       .update({ order_status: status })
@@ -1303,11 +1812,8 @@ app.patch("/api/shop/orders/:orderId/status", async (req, res) => {
   }
 });
 
-// ============================================
 // MENU API ENDPOINTS
-// ============================================
 
-// Get all menu items (public)
 app.get("/api/menu/items", async (req, res) => {
   try {
     const { data: items, error } = await supabase
@@ -1334,7 +1840,6 @@ app.get("/api/menu/items", async (req, res) => {
   }
 });
 
-// Get single menu item (public)
 app.get("/api/menu/items/:itemId", async (req, res) => {
   try {
     const { itemId } = req.params;
@@ -1361,13 +1866,11 @@ app.get("/api/menu/items/:itemId", async (req, res) => {
   }
 });
 
-// Update menu item (Shop Master/Admin only)
 app.put("/api/shop/menu/items/:itemId", async (req, res) => {
   try {
     const { itemId } = req.params;
     const { lineUid, name, price, description } = req.body;
 
-    // Validate LINE UID
     if (!lineUid) {
       return res.status(400).json({
         success: false,
@@ -1382,7 +1885,6 @@ app.put("/api/shop/menu/items/:itemId", async (req, res) => {
       });
     }
 
-    // Validate price
     if (isNaN(price) || price < 0) {
       return res.status(400).json({
         success: false,
@@ -1390,7 +1892,6 @@ app.put("/api/shop/menu/items/:itemId", async (req, res) => {
       });
     }
 
-    // Check user role
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("user_role, display_name")
@@ -1411,7 +1912,6 @@ app.put("/api/shop/menu/items/:itemId", async (req, res) => {
       });
     }
 
-    // Update menu item
     const updateData = {
       name: name.trim(),
       price: parseFloat(price),
@@ -1449,12 +1949,10 @@ app.put("/api/shop/menu/items/:itemId", async (req, res) => {
   }
 });
 
-// Add new menu item (Shop Master/Admin only)
 app.post("/api/shop/menu/items", async (req, res) => {
   try {
     const { lineUid, name, price, description, category } = req.body;
 
-    // Validate required fields
     if (!lineUid || !name || price === undefined) {
       return res.status(400).json({
         success: false,
@@ -1462,7 +1960,6 @@ app.post("/api/shop/menu/items", async (req, res) => {
       });
     }
 
-    // Validate price
     if (isNaN(price) || price < 0) {
       return res.status(400).json({
         success: false,
@@ -1470,7 +1967,6 @@ app.post("/api/shop/menu/items", async (req, res) => {
       });
     }
 
-    // Check user role
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("user_role, display_name")
@@ -1491,7 +1987,6 @@ app.post("/api/shop/menu/items", async (req, res) => {
       });
     }
 
-    // Insert new menu item
     const { data: newItem, error } = await supabase
       .from("menu_items")
       .insert([
@@ -1526,7 +2021,6 @@ app.post("/api/shop/menu/items", async (req, res) => {
   }
 });
 
-// Delete menu item - Soft delete (Shop Master/Admin only)
 app.delete("/api/shop/menu/items/:itemId", async (req, res) => {
   try {
     const { itemId } = req.params;
@@ -1539,7 +2033,6 @@ app.delete("/api/shop/menu/items/:itemId", async (req, res) => {
       });
     }
 
-    // Check user role
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("user_role, display_name")
@@ -1560,7 +2053,6 @@ app.delete("/api/shop/menu/items/:itemId", async (req, res) => {
       });
     }
 
-    // Soft delete - set is_available to false
     const { data: deletedItem, error } = await supabase
       .from("menu_items")
       .update({ is_available: false })
@@ -1589,7 +2081,6 @@ app.delete("/api/shop/menu/items/:itemId", async (req, res) => {
   }
 });
 
-// Toggle menu item availability (Shop Master/Admin only)
 app.patch("/api/shop/menu/items/:itemId/toggle", async (req, res) => {
   try {
     const { itemId } = req.params;
@@ -1602,7 +2093,6 @@ app.patch("/api/shop/menu/items/:itemId/toggle", async (req, res) => {
       });
     }
 
-    // Check user role
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("user_role")
@@ -1623,7 +2113,6 @@ app.patch("/api/shop/menu/items/:itemId/toggle", async (req, res) => {
       });
     }
 
-    // Get current item
     const { data: currentItem } = await supabase
       .from("menu_items")
       .select("is_available")
@@ -1637,7 +2126,6 @@ app.patch("/api/shop/menu/items/:itemId/toggle", async (req, res) => {
       });
     }
 
-    // Toggle availability
     const { data: updatedItem, error } = await supabase
       .from("menu_items")
       .update({ is_available: !currentItem.is_available })
@@ -1666,16 +2154,12 @@ app.patch("/api/shop/menu/items/:itemId/toggle", async (req, res) => {
   }
 });
 
-// 🆕 Analytics API - Get system statistics (Admin only)
+// Analytics API
 app.get("/api/admin/statistics", async (req, res) => {
   try {
-    // Get all users
     const { data: users } = await supabase.from("users").select("*");
-
-    // Get all orders
     const { data: orders } = await supabase.from("orders").select("*");
 
-    // Calculate statistics
     const today = new Date().toISOString().split("T")[0];
     const last7Days = new Date(
       Date.now() - 7 * 24 * 60 * 60 * 1000
@@ -1739,6 +2223,7 @@ app.listen(PORT, () => {
   console.log(`   Server running on http://localhost:${PORT}`);
   console.log("   🍣 Sushi Cafe API");
   console.log("   📊 Connected to Supabase");
+  console.log("   ✅ All LIFF IDs Configured");
   console.log("   ✅ Admin Rich Menu Handlers Active");
   console.log("🚀 ========================================");
 });

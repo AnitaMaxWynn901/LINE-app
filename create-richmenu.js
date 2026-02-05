@@ -1,8 +1,13 @@
 /**
  * Creates Rich Menus on LINE (user, shop_master, admin).
- * Editing this file does NOT change menus already on LINE. To apply changes:
- * - For shop_master only: node update-shop-richmenu.js
- * - For all menus: delete existing in LINE Console, then run this script, update index.js IDs, upload images, run force-link-all-users.js
+ *
+ * ⚠️ IMPORTANT: Editing this file does NOT change menus already on LINE.
+ * To apply changes:
+ * 1. Delete existing Rich Menus in LINE Console
+ * 2. Run this script: node create-richmenu.js
+ * 3. Update RICH_MENUS IDs in index.js
+ * 4. Upload images using upload-richmenu-images.js
+ * 5. (Optional) Run force-link-all-users.js to update all users
  */
 require("dotenv").config();
 const line = require("@line/bot-sdk");
@@ -11,7 +16,24 @@ const lineClient = new line.messagingApi.MessagingApiClient({
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
 });
 
-// 1️⃣ USER RICH MENU (6 buttons - 2 rows x 3 columns style)
+// ============================================
+// 🎯 LIFF IDS - FROM YOUR SCREENSHOT
+// ============================================
+const LIFF_IDS = {
+  HELP: "2008995030-skHhHuZ3",
+  USER_PROFILE: "2008995030-0uvyWNBb",
+  USER_POINTS: "2008995030-gyFJjoF0",
+  ANALYTICS: "2008995030-t2KDZKUZ",
+  ALL_USERS: "2008995030-RIMwbPZT",
+  SHOP_MENU: "2008995030-4EY711eF",
+  ADMIN_DASHBOARD: "2008995030-vfYwWQCF",
+  USER_DASHBOARD: "2008995030-RawExQeM",
+  ADMIN_REGISTRATION: "2008995030-VESHc83X",
+  SHOP_DASHBOARD: "2008995030-d47ws6I6",
+  WELCOME_APP: "2008995030-W39gBpe4",
+};
+
+// 1️⃣ USER RICH MENU (6 buttons - 2 rows x 3 columns)
 async function createUserRichMenu() {
   const richMenu = {
     size: {
@@ -28,7 +50,7 @@ async function createUserRichMenu() {
         action: {
           type: "uri",
           label: "Order Now",
-          uri: "https://liff.line.me/2008995030-W39gBpe4",
+          uri: `https://liff.line.me/${LIFF_IDS.WELCOME_APP}`,
         },
       },
       {
@@ -36,7 +58,7 @@ async function createUserRichMenu() {
         action: {
           type: "uri",
           label: "My Orders",
-          uri: "https://liff.line.me/2008995030-RawExQeM",
+          uri: `https://liff.line.me/${LIFF_IDS.USER_DASHBOARD}`,
         },
       },
       // Row 2
@@ -98,7 +120,7 @@ async function createShopMasterRichMenu() {
         action: {
           type: "uri",
           label: "Dashboard",
-          uri: "https://liff.line.me/2008995030-d47ws6I6",
+          uri: `https://liff.line.me/${LIFF_IDS.SHOP_DASHBOARD}`,
         },
       },
       // Top right
@@ -116,7 +138,7 @@ async function createShopMasterRichMenu() {
         action: {
           type: "uri",
           label: "Menu",
-          uri: "https://liff.line.me/2008995030-4EY711eF",
+          uri: `https://liff.line.me/${LIFF_IDS.SHOP_MENU}`,
         },
       },
       // Bottom right
@@ -153,7 +175,7 @@ async function createAdminRichMenu() {
         action: {
           type: "uri",
           label: "Admin Dashboard",
-          uri: "https://liff.line.me/2008995030-vfYwWQCF",
+          uri: `https://liff.line.me/${LIFF_IDS.ADMIN_DASHBOARD}`,
         },
       },
       // Top right
@@ -195,6 +217,12 @@ async function createAdminRichMenu() {
 async function main() {
   try {
     console.log("🚀 Creating Rich Menus...\n");
+    console.log("📍 LIFF IDs configured:");
+    console.log(`   Welcome App: ${LIFF_IDS.WELCOME_APP}`);
+    console.log(`   User Dashboard: ${LIFF_IDS.USER_DASHBOARD}`);
+    console.log(`   Shop Dashboard: ${LIFF_IDS.SHOP_DASHBOARD}`);
+    console.log(`   Shop Menu: ${LIFF_IDS.SHOP_MENU}`);
+    console.log(`   Admin Dashboard: ${LIFF_IDS.ADMIN_DASHBOARD}\n`);
 
     const userMenuId = await createUserRichMenu();
     const shopMasterMenuId = await createShopMasterRichMenu();
@@ -208,14 +236,22 @@ async function main() {
     console.log(`  admin: '${adminMenuId}',`);
     console.log("};\n");
 
+    console.log("⚠️  NEXT STEPS:");
+    console.log("1. Update RICH_MENUS IDs in index.js");
+    console.log("2. Upload images: node upload-richmenu-images.js");
+    console.log("3. Images must be 2500 x 1686 pixels");
+    console.log("4. Deploy your updated code");
     console.log(
-      "⚠️  IMPORTANT: You still need to upload images for each Rich Menu!"
+      "5. (Optional) Force link all users: node force-link-all-users.js\n"
     );
-    console.log("📸 Image size: 2500 x 1686 pixels");
-    console.log("🎨 Use Canva or Photoshop to create the images");
-    console.log("📤 Upload via LINE Developers Console > Rich menus");
   } catch (error) {
     console.error("❌ Error creating Rich Menus:", error);
+    console.error("\n💡 Common issues:");
+    console.error("   - Check .env file has correct LINE_CHANNEL_ACCESS_TOKEN");
+    console.error("   - Verify channel access token has Rich Menu permissions");
+    console.error(
+      "   - Make sure you're using Messaging API channel (not LINE Login)"
+    );
   }
 }
 
