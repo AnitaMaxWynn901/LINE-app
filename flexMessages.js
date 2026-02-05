@@ -335,14 +335,30 @@ function getPendingOrdersCarousel(orders) {
           size: "sm",
           weight: "bold",
         },
-        { type: "text", text: `👤 ${o.display_name}`, size: "xs", color: "#666666" },
-        { type: "text", text: `🍣 ${o.order_details}`, size: "xs", color: "#666666", wrap: true },
+        {
+          type: "text",
+          text: `👤 ${o.display_name}`,
+          size: "xs",
+          color: "#666666",
+        },
+        {
+          type: "text",
+          text: `🍣 ${o.order_details}`,
+          size: "xs",
+          color: "#666666",
+          wrap: true,
+        },
         {
           type: "box",
           layout: "baseline",
           contents: [
             { type: "text", text: "💰", size: "xs", flex: 0 },
-            { type: "text", text: `$${o.total_amount}`, size: "xs", weight: "bold" },
+            {
+              type: "text",
+              text: `$${o.total_amount}`,
+              size: "xs",
+              weight: "bold",
+            },
           ],
         },
       ],
@@ -387,8 +403,19 @@ function getNoPendingOrdersCard() {
         type: "box",
         layout: "vertical",
         contents: [
-          { type: "text", text: "📦 Pending orders", size: "md", weight: "bold" },
-          { type: "text", text: "No pending orders right now.", size: "sm", color: "#666666", margin: "md" },
+          {
+            type: "text",
+            text: "📦 Pending orders",
+            size: "md",
+            weight: "bold",
+          },
+          {
+            type: "text",
+            text: "No pending orders right now.",
+            size: "sm",
+            color: "#666666",
+            margin: "md",
+          },
         ],
       },
       footer: {
@@ -399,7 +426,82 @@ function getNoPendingOrdersCard() {
             type: "button",
             style: "primary",
             height: "sm",
-            action: { type: "uri", label: "Open Dashboard", uri: SHOP_DASHBOARD_LIFF },
+            action: {
+              type: "uri",
+              label: "Open Dashboard",
+              uri: SHOP_DASHBOARD_LIFF,
+            },
+          },
+        ],
+      },
+    },
+  };
+}
+
+// Contact Card
+function getContactCard() {
+  return {
+    type: "flex",
+    altText: "Contact Sushi Cafe",
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        contents: [
+          {
+            type: "text",
+            text: "📞 Contact Us",
+            weight: "bold",
+            size: "lg",
+          },
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "text",
+            text: "🍣 Sushi Cafe",
+            weight: "bold",
+            size: "md",
+          },
+          {
+            type: "text",
+            text: "📍 Chiang Rai, Thailand",
+            size: "sm",
+            color: "#666666",
+          },
+          {
+            type: "text",
+            text: "📞 09X-XXX-XXXX",
+            size: "sm",
+            color: "#666666",
+          },
+          {
+            type: "text",
+            text: "🕘 Open daily: 10:00 – 21:00",
+            size: "sm",
+            color: "#666666",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        spacing: "sm",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "📍 Open in Google Maps",
+              uri: "https://maps.google.com", // replace with real link
+            },
           },
         ],
       },
@@ -413,4 +515,5 @@ module.exports = {
   getOrderConfirmation,
   getPendingOrdersCarousel,
   getNoPendingOrdersCard,
+  getContactCard,
 };

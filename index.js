@@ -10,6 +10,9 @@ const {
   getWelcomeCard,
   getMenuCard,
   getOrderConfirmation,
+  getPendingOrdersCarousel,
+  getNoPendingOrdersCard,
+  getContactCard,
 } = require("./flexMessages");
 
 // Initialize Express app
@@ -141,17 +144,483 @@ async function handleLineEvent(event) {
       .eq("line_uid", userId);
 
     const isRegistered = users && users.length > 0;
+    const user = isRegistered ? users[0] : null;
+
+    // Convert to lowercase for case-insensitive matching
+    const lowerMessage = userMessage.toLowerCase();
+
+    // ============================================
+    // 🆕 ADMIN RICH MENU HANDLERS
+    // ============================================
+
+    // 👨‍🍳 SHOP MASTERS BUTTON
+    if (lowerMessage === "shop masters") {
+      if (!user || user.user_role !== "admin") {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: "text", text: "❌ Admin access only." }],
+        });
+      }
+
+      // Get all shop masters
+      const { data: shopMasters } = await supabase
+        .from("users")
+        .select("*")
+        .eq("user_role", "shop_master")
+        .order("registered_at", { ascending: false });
+
+      if (!shopMasters || shopMasters.length === 0) {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [
+            {
+              type: "text",
+              text: "👨‍🍳 No Shop Masters Found\n\nPromote users to shop_master role in the admin dashboard.",
+            },
+          ],
+        });
+      }
+
+      // Create carousel of shop master cards (max 12)
+      const bubbles = shopMasters.slice(0, 12).map((sm) => ({
+        type: "bubble",
+        size: "micro",
+        body: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "text",
+              text: sm.display_name,
+              weight: "bold",
+              size: "md",
+              wrap: true,
+            },
+            {
+              type: "text",
+              text: `📱 ${sm.phone_number}`,
+              size: "xs",
+              color: "#666666",
+              margin: "md",
+            },
+            {
+              type: "text",
+              text: `📧 ${sm.email || "No email"}`,
+              size: "xs",
+              color: "#666666",
+              wrap: true,
+            },
+            {
+              type: "separator",
+              margin: "md",
+            },
+            {
+              type: "box",
+              layout: "baseline",
+              margin: "md",
+              contents: [
+                {
+                  type: "text",
+                  text: "💎 Points:",
+                  size: "xs",
+                  color: "#999999",
+                  flex: 0,
+                },
+                {
+                  type: "text",
+                  text: `${sm.points}`,
+                  size: "xs",
+                  margin: "sm",
+                  flex: 0,
+                },
+              ],
+            },
+            {
+              type: "text",
+              text: `📅 ${new Date(sm.registered_at).toLocaleDateString()}`,
+              size: "xxs",
+              color: "#999999",
+              margin: "sm",
+            },
+          ],
+        },
+      }));
+
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "flex",
+            altText: `${shopMasters.length} Shop Master(s)`,
+            contents: {
+              type: "carousel",
+              contents: bubbles,
+            },
+          },
+        ],
+      });
+    }
+
+    // 👥 ALL USERS BUTTON
+    if (lowerMessage === "all users") {
+      if (!user || user.user_role !== "admin") {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: "text", text: "❌ Admin access only." }],
+        });
+      }
+
+      // TODO: Replace YOUR_USERS_LIFF_ID with actual LIFF ID from LINE Console
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "flex",
+            altText: "View All Users",
+            contents: {
+              type: "bubble",
+              body: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "text",
+                    text: "👥 All Users",
+                    size: "xl",
+                    weight: "bold",
+                  },
+                  {
+                    type: "text",
+                    text: "View detailed user list with search and filters",
+                    size: "sm",
+                    color: "#666666",
+                    margin: "md",
+                    wrap: true,
+                  },
+                ],
+              },
+              footer: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "button",
+                    style: "primary",
+                    action: {
+                      type: "uri",
+                      label: "Open User List",
+                      // TODO: Replace with your All Users LIFF ID
+                      uri: "https://liff.line.me/2008995030-RIMwbPZT",
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    // 📊 ANALYTICS BUTTON
+    if (lowerMessage === "analytics") {
+      if (!user || user.user_role !== "admin") {
+        return lineClient.replyMessage({
+          replyToken: event.replyToken,
+          messages: [{ type: "text", text: "❌ Admin access only." }],
+        });
+      }
+
+      // Get analytics data
+      const { data: allUsers } = await supabase.from("users").select("*");
+      const { data: allOrders } = await supabase.from("orders").select("*");
+
+      const totalUsers = allUsers?.length || 0;
+      const totalShopMasters =
+        allUsers?.filter((u) => u.user_role === "shop_master").length || 0;
+      const totalAdmins =
+        allUsers?.filter((u) => u.user_role === "admin").length || 0;
+
+      const totalOrders = allOrders?.length || 0;
+      const completedOrders =
+        allOrders?.filter((o) => o.order_status === "completed").length || 0;
+      const pendingOrders =
+        allOrders?.filter((o) => o.order_status === "pending").length || 0;
+
+      const totalRevenue =
+        allOrders
+          ?.filter((o) => o.order_status === "completed")
+          .reduce((sum, o) => sum + parseFloat(o.total_amount), 0) || 0;
+
+      // Today's stats
+      const today = new Date().toISOString().split("T")[0];
+      const todayOrders =
+        allOrders?.filter((o) => o.order_date.startsWith(today)) || [];
+      const todayRevenue = todayOrders
+        .filter((o) => o.order_status === "completed")
+        .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [
+          {
+            type: "flex",
+            altText: "Analytics Dashboard",
+            contents: {
+              type: "bubble",
+              body: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "text",
+                    text: "📊 Analytics",
+                    size: "xl",
+                    weight: "bold",
+                    color: "#f5576c",
+                  },
+                  {
+                    type: "separator",
+                    margin: "lg",
+                  },
+                  {
+                    type: "box",
+                    layout: "vertical",
+                    margin: "lg",
+                    spacing: "sm",
+                    contents: [
+                      // Users Section
+                      {
+                        type: "text",
+                        text: "👥 Users",
+                        weight: "bold",
+                        size: "sm",
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Total:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `${totalUsers}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Shop Masters:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `${totalShopMasters}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Admins:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `${totalAdmins}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                          },
+                        ],
+                      },
+                      {
+                        type: "separator",
+                        margin: "md",
+                      },
+                      // Orders Section
+                      {
+                        type: "text",
+                        text: "📦 Orders",
+                        weight: "bold",
+                        size: "sm",
+                        margin: "md",
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Total:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `${totalOrders}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Completed:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `${completedOrders}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                            color: "#28a745",
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Pending:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `${pendingOrders}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                            color: "#ffc107",
+                          },
+                        ],
+                      },
+                      {
+                        type: "separator",
+                        margin: "md",
+                      },
+                      // Revenue Section
+                      {
+                        type: "text",
+                        text: "💰 Revenue",
+                        weight: "bold",
+                        size: "sm",
+                        margin: "md",
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Total:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `$${totalRevenue.toFixed(2)}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                            weight: "bold",
+                          },
+                        ],
+                      },
+                      {
+                        type: "box",
+                        layout: "baseline",
+                        contents: [
+                          {
+                            type: "text",
+                            text: "Today:",
+                            size: "xs",
+                            color: "#999999",
+                            flex: 2,
+                          },
+                          {
+                            type: "text",
+                            text: `$${todayRevenue.toFixed(2)}`,
+                            size: "xs",
+                            flex: 1,
+                            align: "end",
+                            color: "#06c755",
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              footer: {
+                type: "box",
+                layout: "vertical",
+                contents: [
+                  {
+                    type: "button",
+                    style: "primary",
+                    action: {
+                      type: "uri",
+                      label: "Full Dashboard",
+                      // Opens existing admin dashboard (or create new analytics LIFF)
+                      uri: "https://liff.line.me/2008995030-BmX1RlOW",
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      });
+    }
+
+    // ============================================
+    // EXISTING MESSAGE HANDLERS
+    // ============================================
 
     // Handle different message types
     if (
-      userMessage.toLowerCase().includes("menu") ||
-      userMessage.toLowerCase().includes("order") ||
-      userMessage.toLowerCase().includes("start")
+      lowerMessage.includes("menu") ||
+      lowerMessage.includes("order") ||
+      lowerMessage.includes("start")
     ) {
       if (isRegistered) {
         // Registered user - show personalized menu card
-        const user = users[0];
-
         return lineClient.replyMessage({
           replyToken: event.replyToken,
           messages: [getMenuCard(user.display_name, user.points)],
@@ -163,6 +632,14 @@ async function handleLineEvent(event) {
           messages: [getWelcomeCard()],
         });
       }
+    }
+
+    // CONTACT
+    if (userMessage.toLowerCase() === "contact") {
+      return lineClient.replyMessage({
+        replyToken: event.replyToken,
+        messages: [getContactCard()],
+      });
     }
 
     // Handle order confirmation messages (from LIFF app)
@@ -183,7 +660,6 @@ async function handleLineEvent(event) {
 
     // Default response - show welcome card to everyone
     if (isRegistered) {
-      const user = users[0];
       return lineClient.replyMessage({
         replyToken: event.replyToken,
         messages: [
@@ -288,8 +764,6 @@ app.post("/api/register", async (req, res) => {
 
     console.log("✅ User registered + Rich Menu linked:", newUser.line_uid);
 
-    console.log("✅ New user registered:", newUser.line_uid);
-
     res.status(201).json({
       success: true,
       message: "🎉 Registration Successful!",
@@ -392,8 +866,6 @@ app.post("/api/register-admin", async (req, res) => {
     await linkRichMenu(newUser.line_uid, newUser.user_role);
 
     console.log(`✅ ${userRole} registered + Rich Menu linked`);
-
-    console.log(`✅ New ${userRole} registered:`, newUser.line_uid);
 
     res.status(201).json({
       success: true,
@@ -599,276 +1071,21 @@ app.get("/api/orders/user/:lineUid", async (req, res) => {
 
     res.json({
       success: true,
-      count: orders.length,
       data: orders,
+      count: orders.length,
     });
   } catch (error) {
     console.error("❌ Get orders error:", error);
     res.status(500).json({
       success: false,
-      message: "Server Error",
-      error: error.message,
-    });
-  }
-});
-
-// Update order status
-app.put("/api/orders/:orderId/status", async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const { status } = req.body;
-
-    const validStatuses = ["pending", "confirmed", "completed", "cancelled"];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid status. Must be pending, confirmed, completed or cancelled",
-      });
-    }
-
-    const { data: updatedOrder, error } = await supabase
-      .from("orders")
-      .update({ order_status: status })
-      .eq("order_id", orderId)
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    console.log(`✅ Order #${orderId} status updated to: ${status}`);
-
-    res.json({
-      success: true,
-      message: `Order status updated to ${status}`,
-      data: updatedOrder,
-    });
-  } catch (error) {
-    console.error("❌ Update order status error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-      error: error.message,
-    });
-  }
-});
-
-// Get user dashboard
-app.get("/api/dashboard/user/:lineUid", async (req, res) => {
-  try {
-    const { lineUid } = req.params;
-
-    const { data: users } = await supabase
-      .from("users")
-      .select("*")
-      .eq("line_uid", lineUid);
-
-    if (!users || users.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    const user = users[0];
-
-    const { data: orders, error: ordersError } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("line_uid", lineUid)
-      .order("order_date", { ascending: false });
-
-    if (ordersError) {
-      throw ordersError;
-    }
-
-    const totalOrders = orders.length;
-    const completedOrders = orders.filter(
-      (o) => o.order_status === "completed"
-    ).length;
-    const totalSpent = orders.reduce(
-      (sum, order) => sum + parseFloat(order.total_amount),
-      0
-    );
-    const recentOrders = orders.slice(0, 5);
-
-    res.json({
-      success: true,
-      data: {
-        user: {
-          displayName: user.display_name,
-          phoneNumber: user.phone_number,
-          email: user.email,
-          points: user.points,
-          memberSince: user.registered_at,
-        },
-        statistics: {
-          totalOrders,
-          completedOrders,
-          totalSpent: totalSpent.toFixed(2),
-        },
-        recentOrders,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Get user dashboard error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-});
-
-// Get shop master dashboard
-app.get("/api/dashboard/shop", async (req, res) => {
-  try {
-    // 1️⃣ Fetch orders WITH user display name (JOIN)
-    const { data: allOrders, error: ordersError } = await supabase.from(
-      "orders"
-    ).select(`
-        order_id,
-        order_details,
-        total_amount,
-        points_earned,
-        order_status,
-        order_date,
-        line_uid,
-        users (
-          display_name
-        )
-      `);
-
-    if (ordersError) {
-      throw ordersError;
-    }
-
-    // 2️⃣ Normalize orders (flatten display_name)
-    const normalizedOrders = allOrders.map((order) => ({
-      order_id: order.order_id,
-      order_details: order.order_details,
-      total_amount: order.total_amount,
-      points_earned: order.points_earned,
-      order_status: order.order_status,
-      order_date: order.order_date,
-      line_uid: order.line_uid,
-      display_name: order.users?.display_name || "Unknown",
-    }));
-
-    // 3️⃣ Fetch users (for statistics)
-    const { data: allUsers, error: usersError } = await supabase
-      .from("users")
-      .select("*");
-
-    if (usersError) {
-      throw usersError;
-    }
-
-    // 4️⃣ Statistics calculations
-    const totalOrders = normalizedOrders.length;
-
-    const pendingOrders = normalizedOrders.filter(
-      (o) => o.order_status === "pending"
-    ).length;
-
-    const completedOrders = normalizedOrders.filter(
-      (o) => o.order_status === "completed"
-    ).length;
-
-    const totalRevenue = normalizedOrders
-      .filter((o) => o.order_status === "completed")
-      .reduce((sum, order) => sum + parseFloat(order.total_amount), 0);
-
-    const totalCustomers = allUsers.filter(
-      (u) => u.user_role === "user"
-    ).length;
-
-    const today = new Date().toISOString().split("T")[0];
-
-    const todayOrders = normalizedOrders.filter((o) =>
-      o.order_date.startsWith(today)
-    );
-
-    const todayRevenue = todayOrders.reduce(
-      (sum, order) => sum + parseFloat(order.total_amount),
-      0
-    );
-
-    // 5️⃣ Recent orders (latest 10)
-    const recentOrders = [...normalizedOrders]
-      .sort((a, b) => new Date(b.order_date) - new Date(a.order_date))
-      .slice(0, 10);
-
-    // 6️⃣ Response
-    res.json({
-      success: true,
-      data: {
-        statistics: {
-          totalOrders,
-          pendingOrders,
-          completedOrders,
-          totalRevenue: totalRevenue.toFixed(2),
-          totalCustomers,
-          todayOrders: todayOrders.length,
-          todayRevenue: todayRevenue.toFixed(2),
-        },
-        recentOrders,
-      },
-    });
-  } catch (error) {
-    console.error("❌ Get shop dashboard error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-});
-
-// Get admin dashboard
-app.get("/api/dashboard/admin", async (req, res) => {
-  try {
-    const { data: allOrders } = await supabase.from("orders").select("*");
-    const { data: allUsers } = await supabase.from("users").select("*");
-
-    const usersByRole = {
-      users: allUsers.filter((u) => u.user_role === "user").length,
-      shopMasters: allUsers.filter((u) => u.user_role === "shop_master").length,
-      admins: allUsers.filter((u) => u.user_role === "admin").length,
-    };
-
-    const totalRevenue = allOrders.reduce(
-      (sum, order) => sum + parseFloat(order.total_amount),
-      0
-    );
-
-    res.json({
-      success: true,
-      data: {
-        statistics: {
-          totalUsers: allUsers.length,
-          usersByRole,
-          totalOrders: allOrders.length,
-          totalRevenue: totalRevenue.toFixed(2),
-        },
-        recentUsers: allUsers.slice(-10).reverse(),
-        recentOrders: allOrders.slice(-10).reverse(),
-      },
-    });
-  } catch (error) {
-    console.error("❌ Get admin dashboard error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
+      message: "Failed to fetch orders",
       error: error.message,
     });
   }
 });
 
 // ============================================
-// ADMIN API ENDPOINTS (Add these to index.js)
+// ADMIN API ENDPOINTS
 // ============================================
 
 // Get all users (Admin only)
@@ -879,26 +1096,57 @@ app.get("/api/admin/users", async (req, res) => {
       .select("*")
       .order("registered_at", { ascending: false });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     res.json({
       success: true,
-      count: users.length,
       data: users,
+      count: users.length,
     });
   } catch (error) {
     console.error("❌ Get all users error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Failed to fetch users",
       error: error.message,
     });
   }
 });
 
-// Change user role (Admin only)
+// Get all orders (Admin only)
+app.get("/api/admin/orders", async (req, res) => {
+  try {
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select(
+        `
+        *,
+        users (
+          display_name,
+          phone_number
+        )
+      `
+      )
+      .order("order_date", { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: orders,
+      count: orders.length,
+    });
+  } catch (error) {
+    console.error("❌ Get all orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch orders",
+      error: error.message,
+    });
+  }
+});
+
+// Update user role (Admin only)
 app.put("/api/admin/users/:lineUid/role", async (req, res) => {
   try {
     const { lineUid } = req.params;
@@ -906,10 +1154,10 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
 
     // Validate role
     const validRoles = ["user", "shop_master", "admin"];
-    if (!validRoles.includes(role)) {
+    if (!role || !validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid role. Must be user, shop_master, or admin",
+        message: "Invalid role. Must be: user, shop_master, or admin",
       });
     }
 
@@ -921,11 +1169,12 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
       .select()
       .single();
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     console.log(`✅ User ${lineUid} role changed to: ${role}`);
+
+    // 🔥 AUTO-SWITCH Rich Menu when role changes
+    await switchRichMenu(lineUid, role);
 
     res.json({
       success: true,
@@ -933,155 +1182,147 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
       data: updatedUser,
     });
   } catch (error) {
-    console.error("❌ Change role error:", error);
+    console.error("❌ Update role error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
+      message: "Failed to update user role",
       error: error.message,
     });
   }
 });
 
-// Adjust user points (Admin only)
-app.put("/api/admin/users/:lineUid/points", async (req, res) => {
+// Delete user (Admin only)
+app.delete("/api/admin/users/:lineUid", async (req, res) => {
   try {
     const { lineUid } = req.params;
-    const { points } = req.body;
 
-    // Validate points
-    if (typeof points !== "number" || points < 0) {
+    // Delete user's orders first (foreign key constraint)
+    await supabase.from("orders").delete().eq("line_uid", lineUid);
+
+    // Delete user
+    const { error } = await supabase
+      .from("users")
+      .delete()
+      .eq("line_uid", lineUid);
+
+    if (error) throw error;
+
+    console.log(`✅ User ${lineUid} deleted`);
+
+    res.json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("❌ Delete user error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete user",
+      error: error.message,
+    });
+  }
+});
+
+// ============================================
+// SHOP MASTER API ENDPOINTS
+// ============================================
+
+// Get pending orders (Shop Master)
+app.get("/api/shop/orders/pending", async (req, res) => {
+  try {
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select(
+        `
+        *,
+        users (
+          display_name,
+          phone_number
+        )
+      `
+      )
+      .eq("order_status", "pending")
+      .order("order_date", { ascending: true });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: orders,
+      count: orders.length,
+    });
+  } catch (error) {
+    console.error("❌ Get pending orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch pending orders",
+      error: error.message,
+    });
+  }
+});
+
+// Update order status (Shop Master)
+app.patch("/api/shop/orders/:orderId/status", async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ["pending", "completed", "cancelled"];
+    if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: "Points must be a non-negative number",
+        message: "Invalid status. Must be: pending, completed, or cancelled",
       });
     }
 
-    // Update user points
-    const { data: updatedUser, error } = await supabase
-      .from("users")
-      .update({ points: points })
-      .eq("line_uid", lineUid)
+    // Update order status
+    const { data: updatedOrder, error } = await supabase
+      .from("orders")
+      .update({ order_status: status })
+      .eq("order_id", orderId)
       .select()
       .single();
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    console.log(`✅ User ${lineUid} points updated to: ${points}`);
+    console.log(`✅ Order ${orderId} status changed to: ${status}`);
 
     res.json({
       success: true,
-      message: `User points updated to ${points}`,
-      data: updatedUser,
+      message: `Order status updated to ${status}`,
+      data: updatedOrder,
     });
   } catch (error) {
-    console.error("❌ Update points error:", error);
+    console.error("❌ Update order status error:", error);
     res.status(500).json({
       success: false,
-      message: "Server error",
-      error: error.message,
-    });
-  }
-});
-
-// Get enhanced admin statistics
-app.get("/api/admin/statistics", async (req, res) => {
-  try {
-    const { data: users } = await supabase.from("users").select("*");
-    const { data: orders } = await supabase.from("orders").select("*");
-
-    // User statistics by role
-    const usersByRole = {
-      users: users.filter((u) => u.user_role === "user").length,
-      shopMasters: users.filter((u) => u.user_role === "shop_master").length,
-      admins: users.filter((u) => u.user_role === "admin").length,
-    };
-
-    // Order statistics
-    const totalOrders = orders.length;
-    const pendingOrders = orders.filter(
-      (o) => o.order_status === "pending"
-    ).length;
-    const completedOrders = orders.filter(
-      (o) => o.order_status === "completed"
-    ).length;
-    const cancelledOrders = orders.filter(
-      (o) => o.order_status === "cancelled"
-    ).length;
-
-    // Revenue statistics
-    const totalRevenue = orders
-      .filter((o) => o.order_status === "completed")
-      .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
-
-    // Today's statistics
-    const today = new Date().toISOString().split("T")[0];
-    const todayOrders = orders.filter((o) => o.order_date.startsWith(today));
-    const todayRevenue = todayOrders
-      .filter((o) => o.order_status === "completed")
-      .reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
-
-    // Growth statistics (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentUsers = users.filter(
-      (u) => new Date(u.registered_at) >= sevenDaysAgo
-    ).length;
-    const recentOrders = orders.filter(
-      (o) => new Date(o.order_date) >= sevenDaysAgo
-    ).length;
-
-    res.json({
-      success: true,
-      data: {
-        users: {
-          total: users.length,
-          byRole: usersByRole,
-          recentSignups: recentUsers,
-        },
-        orders: {
-          total: totalOrders,
-          pending: pendingOrders,
-          completed: completedOrders,
-          cancelled: cancelledOrders,
-          recent: recentOrders,
-        },
-        revenue: {
-          total: totalRevenue.toFixed(2),
-          today: todayRevenue.toFixed(2),
-        },
-      },
-    });
-  } catch (error) {
-    console.error("❌ Get admin statistics error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
+      message: "Failed to update order status",
       error: error.message,
     });
   }
 });
 
 // ============================================
-// MENU MANAGEMENT API ENDPOINTS
+// MENU API ENDPOINTS
 // ============================================
 
-// Get all menu items (public - anyone can view)
+// Get all menu items (public)
 app.get("/api/menu/items", async (req, res) => {
   try {
     const { data: items, error } = await supabase
       .from("menu_items")
       .select("*")
       .eq("is_available", true)
-      .order("item_id", { ascending: true });
+      .order("category", { ascending: true })
+      .order("name", { ascending: true });
 
     if (error) throw error;
 
     res.json({
       success: true,
-      count: items ? items.length : 0,
-      data: items || [],
+      data: items,
+      count: items.length,
     });
   } catch (error) {
     console.error("❌ Get menu items error:", error);
@@ -1093,7 +1334,7 @@ app.get("/api/menu/items", async (req, res) => {
   }
 });
 
-// Get single menu item by ID
+// Get single menu item (public)
 app.get("/api/menu/items/:itemId", async (req, res) => {
   try {
     const { itemId } = req.params;
@@ -1106,13 +1347,6 @@ app.get("/api/menu/items/:itemId", async (req, res) => {
 
     if (error) throw error;
 
-    if (!item) {
-      return res.status(404).json({
-        success: false,
-        message: "Menu item not found",
-      });
-    }
-
     res.json({
       success: true,
       data: item,
@@ -1121,7 +1355,7 @@ app.get("/api/menu/items/:itemId", async (req, res) => {
     console.error("❌ Get menu item error:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to fetch menu item",
+      message: "Menu item not found",
       error: error.message,
     });
   }
@@ -1133,7 +1367,7 @@ app.put("/api/shop/menu/items/:itemId", async (req, res) => {
     const { itemId } = req.params;
     const { lineUid, name, price, description } = req.body;
 
-    // Validate required fields
+    // Validate LINE UID
     if (!lineUid) {
       return res.status(400).json({
         success: false,
@@ -1432,11 +1666,79 @@ app.patch("/api/shop/menu/items/:itemId/toggle", async (req, res) => {
   }
 });
 
+// 🆕 Analytics API - Get system statistics (Admin only)
+app.get("/api/admin/statistics", async (req, res) => {
+  try {
+    // Get all users
+    const { data: users } = await supabase.from("users").select("*");
+
+    // Get all orders
+    const { data: orders } = await supabase.from("orders").select("*");
+
+    // Calculate statistics
+    const today = new Date().toISOString().split("T")[0];
+    const last7Days = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000
+    ).toISOString();
+
+    const stats = {
+      users: {
+        total: users?.length || 0,
+        byRole: {
+          users: users?.filter((u) => u.user_role === "user").length || 0,
+          shopMasters:
+            users?.filter((u) => u.user_role === "shop_master").length || 0,
+          admins: users?.filter((u) => u.user_role === "admin").length || 0,
+        },
+        recentSignups:
+          users?.filter((u) => u.registered_at >= last7Days).length || 0,
+      },
+      orders: {
+        total: orders?.length || 0,
+        pending:
+          orders?.filter((o) => o.order_status === "pending").length || 0,
+        completed:
+          orders?.filter((o) => o.order_status === "completed").length || 0,
+        cancelled:
+          orders?.filter((o) => o.order_status === "cancelled").length || 0,
+        recent: orders?.filter((o) => o.order_date >= last7Days).length || 0,
+      },
+      revenue: {
+        total:
+          orders
+            ?.filter((o) => o.order_status === "completed")
+            .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0)
+            .toFixed(2) || "0.00",
+        today:
+          orders
+            ?.filter(
+              (o) =>
+                o.order_status === "completed" && o.order_date.startsWith(today)
+            )
+            .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0)
+            .toFixed(2) || "0.00",
+      },
+    };
+
+    res.json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error("❌ Statistics error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch statistics",
+    });
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log("🚀 ========================================");
   console.log(`   Server running on http://localhost:${PORT}`);
   console.log("   🍣 Sushi Cafe API");
   console.log("   📊 Connected to Supabase");
+  console.log("   ✅ Admin Rich Menu Handlers Active");
   console.log("🚀 ========================================");
 });
