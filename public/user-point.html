@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Points</title>
+
+    <!-- LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding-bottom: 30px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 24px;
+            text-align: center;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            margin: 20px;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .points {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .points .value {
+            font-size: 42px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .points .label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .stat-box {
+            background: #f8f9fc;
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .stat-box .value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-box .label {
+            font-size: 12px;
+            color: #777;
+            margin-top: 4px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 20px;
+            color: #333;
+        }
+
+        .order {
+            background: white;
+            margin: 0 20px 12px;
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .order .row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .order .details {
+            font-size: 13px;
+            color: #555;
+            margin-top: 6px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: red;
+        }
+
+        @media (min-width: 768px) {
+
+            .card,
+            .order {
+                max-width: 480px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>💎 My Points</h1>
+        <p id="username">Loading...</p>
+    </div>
+
+    <div id="loading" class="loading">Loading your points...</div>
+
+    <div id="content" style="display:none;">
+        <div class="card">
+            <div class="points">
+                <div class="value" id="points">0</div>
+                <div class="label">Total Points</div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="value" id="totalOrders">0</div>
+                    <div class="label">Orders</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="totalSpent">$0</div>
+                    <div class="label">Spent</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">🕒 Recent Orders</div>
+        <div id="orders"></div>
+    </div>
+
+    <div id="error" class="error" style="display:none;"></div>
+
+    <script>
+        const LIFF_ID = "2008995030-gyFJjoF0";
+        const API_URL = "https://line-app-94vb.onrender.com";
+
+        async function initLIFF() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                const profile = await liff.getProfile();
+                document.getElementById("username").textContent = profile.displayName;
+
+                const res = await fetch(`${API_URL}/api/dashboard/user/${profile.userId}`);
+                const result = await res.json();
+
+                if (!result.success) {
+                    throw new Error(result.message || "Failed to load data");
+                }
+
+                const data = result.data;
+
+                document.getElementById("points").textContent = data.user.points;
+                document.getElementById("totalOrders").textContent = data.statistics.totalOrders;
+                document.getElementById("totalSpent").textContent = "$" + data.statistics.totalSpent;
+
+                const ordersContainer = document.getElementById("orders");
+                ordersContainer.innerHTML = "";
+
+                data.recentOrders.forEach(order => {
+                    const div = document.createElement("div");
+                    div.className = "order";
+                    div.innerHTML = `
+          <div class="row"><strong>Order</strong><span>#${order.order_id}</span></div>
+          <div class="row"><span>Points</span><span>+${order.points_earned}</span></div>
+          <div class="row"><span>Date</span><span>${new Date(order.order_date).toLocaleString()}</span></div>
+          <div class="details">${order.order_details}</div>
+        `;
+                    ordersContainer.appendChild(div);
+                });
+
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("content").style.display = "block";
+
+            } catch (err) {
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("error").textContent = err.message;
+                document.getElementById("error").style.display = "block";
+            }
+        }
+
+        window.addEventListener("load", initLIFF);
+    </script>
+
+</body>
+
+</html>
