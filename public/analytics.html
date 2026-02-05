@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analytics</title>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding-bottom: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-card h3 {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-card .change {
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        .positive {
+            color: #28a745;
+        }
+
+        .negative {
+            color: #dc3545;
+        }
+
+        .container {
+            padding: 0 16px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .insight-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .insight-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .insight-text {
+            font-size: 14px;
+            opacity: 0.95;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>📊 Analytics</h1>
+        <p>Business Insights & Trends</p>
+    </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading analytics...</p>
+    </div>
+
+    <div id="app" class="hidden">
+        <!-- Key Metrics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Revenue</h3>
+                <div class="value" id="statRevenue">$0</div>
+                <div class="change" id="revenueChange"></div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Orders</h3>
+                <div class="value" id="statOrders">0</div>
+                <div class="change" id="ordersChange"></div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Users</h3>
+                <div class="value" id="statUsers">0</div>
+                <div class="change" id="usersChange"></div>
+            </div>
+            <div class="stat-card">
+                <h3>Avg Order Value</h3>
+                <div class="value" id="statAvgOrder">$0</div>
+                <div class="change" id="avgChange"></div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- AI Insights -->
+            <div id="insights"></div>
+
+            <!-- Revenue Chart -->
+            <div class="chart-card">
+                <div class="chart-title">💰 Revenue Over Time</div>
+                <canvas id="revenueChart"></canvas>
+            </div>
+
+            <!-- Orders Chart -->
+            <div class="chart-card">
+                <div class="chart-title">📦 Orders by Status</div>
+                <canvas id="ordersChart"></canvas>
+            </div>
+
+            <!-- Users Chart -->
+            <div class="chart-card">
+                <div class="chart-title">👥 Users by Role</div>
+                <canvas id="usersChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LIFF_ID = '2008995030-t2KDZKUZ';
+        const API_URL = 'https://line-app-94vb.onrender.com';
+
+        let charts = {};
+
+        async function init() {
+            await liff.init({ liffId: LIFF_ID });
+            if (!liff.isLoggedIn()) return liff.login();
+
+            const profile = await liff.getProfile();
+            const userRes = await fetch(`${API_URL}/api/user/${profile.userId}`);
+            const user = await userRes.json();
+
+            if (user.userRole !== 'admin') {
+                alert('❌ Admin access only');
+                return liff.closeWindow();
+            }
+
+            await loadAnalytics();
+
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+        }
+
+        async function loadAnalytics() {
+            // Load users and orders
+            const usersRes = await fetch(`${API_URL}/api/admin/users`);
+            const usersData = await usersRes.json();
+            const users = usersData.data || [];
+
+            const statsRes = await fetch(`${API_URL}/api/admin/statistics`);
+            const statsData = await statsRes.json();
+            const stats = statsData.data;
+
+            // Update stats
+            document.getElementById('statRevenue').textContent = '$' + stats.revenue.total;
+            document.getElementById('statOrders').textContent = stats.orders.total;
+            document.getElementById('statUsers').textContent = stats.users.total;
+
+            const avgOrderValue = stats.orders.total > 0
+                ? (parseFloat(stats.revenue.total) / stats.orders.total).toFixed(2)
+                : '0.00';
+            document.getElementById('statAvgOrder').textContent = '$' + avgOrderValue;
+
+            // Show growth indicators
+            document.getElementById('revenueChange').innerHTML = `<span class="positive">📈 Today: $${stats.revenue.today}</span>`;
+            document.getElementById('ordersChange').innerHTML = `<span class="positive">📈 Last 7 days: ${stats.orders.recent}</span>`;
+            document.getElementById('usersChange').innerHTML = `<span class="positive">📈 Last 7 days: ${stats.users.recentSignups}</span>`;
+
+            // Generate insights
+            generateInsights(stats, users);
+
+            // Create charts
+            createRevenueChart(stats);
+            createOrdersChart(stats);
+            createUsersChart(stats);
+        }
+
+        function generateInsights(stats, users) {
+            const insights = [];
+
+            // Revenue insight
+            const todayRevenue = parseFloat(stats.revenue.today);
+            if (todayRevenue > 0) {
+                insights.push(`Today's revenue is <strong>$${todayRevenue}</strong>. Keep up the great work!`);
+            }
+
+            // Growth insight
+            if (stats.users.recentSignups > 0) {
+                insights.push(`<strong>${stats.users.recentSignups}</strong> new users joined in the last 7 days!`);
+            }
+
+            // Pending orders
+            if (stats.orders.pending > 0) {
+                insights.push(`You have <strong>${stats.orders.pending}</strong> pending orders waiting for fulfillment.`);
+            }
+
+            const container = document.getElementById('insights');
+            container.innerHTML = insights.map(text => `
+                <div class="insight-card">
+                    <div class="insight-title">💡 Insight</div>
+                    <div class="insight-text">${text}</div>
+                </div>
+            `).join('');
+        }
+
+        function createRevenueChart(stats) {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            charts.revenue = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Today', 'Total'],
+                    datasets: [{
+                        label: 'Revenue ($)',
+                        data: [parseFloat(stats.revenue.today), parseFloat(stats.revenue.total)],
+                        backgroundColor: ['rgba(102, 126, 234, 0.8)', 'rgba(118, 75, 162, 0.8)'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function createOrdersChart(stats) {
+            const ctx = document.getElementById('ordersChart').getContext('2d');
+            charts.orders = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pending', 'Completed', 'Cancelled'],
+                    datasets: [{
+                        data: [stats.orders.pending, stats.orders.completed, stats.orders.cancelled],
+                        backgroundColor: ['#ffc107', '#28a745', '#dc3545'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                }
+            });
+        }
+
+        function createUsersChart(stats) {
+            const ctx = document.getElementById('usersChart').getContext('2d');
+            charts.users = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Users', 'Shop Masters', 'Admins'],
+                    datasets: [{
+                        data: [stats.users.byRole.users, stats.users.byRole.shopMasters, stats.users.byRole.admins],
+                        backgroundColor: ['#667eea', '#f093fb', '#f5576c'],
+                    }]
+                },
+                options: {
+                    responsive: true,
+                }
+            });
+        }
+
+        window.onload = init;
+    </script>
+</body>
+
+</html>
