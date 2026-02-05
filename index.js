@@ -388,7 +388,7 @@ app.post("/api/register-admin", async (req, res) => {
       throw insertError;
     }
 
-      // 🔥 AUTO-LINK Rich Menu based on role
+    // 🔥 AUTO-LINK Rich Menu based on role
     await linkRichMenu(newUser.line_uid, newUser.user_role);
 
     console.log(`✅ ${userRole} registered + Rich Menu linked`);
@@ -447,41 +447,44 @@ app.get("/api/user/:lineUid", async (req, res) => {
 
     const userData = users[0];
 
-    // Role-based response
+    // ✅ COMMON PROFILE FIELDS (for ALL roles)
+    const baseProfile = {
+      success: true,
+      userRole: userData.user_role,
+      displayName: userData.display_name,
+      phoneNumber: userData.phone_number,
+      email: userData.email,
+      points: userData.points,
+      registeredAt: userData.registered_at,
+    };
+
+    // 🔧 ADMIN
     if (userData.user_role === "admin") {
       console.log(`🔧 ADMIN Detected: ${userData.display_name}`);
       return res.json({
-        success: true,
-        userRole: "admin",
-        displayName: userData.display_name,
-        points: userData.points,
+        ...baseProfile,
         message: "Admin access - Full control",
         richMenu: "admin_menu_id",
       });
-    } else if (userData.user_role === "shop_master") {
+    }
+
+    // 👨‍🍳 SHOP MASTER
+    if (userData.user_role === "shop_master") {
       console.log(`👨‍🍳 SHOP MASTER Detected: ${userData.display_name}`);
       return res.json({
-        success: true,
-        userRole: "shop_master",
-        displayName: userData.display_name,
-        points: userData.points,
+        ...baseProfile,
         message: "Shop Master access - Manage Restaurant",
         richMenu: "shop_master_menu_id",
       });
-    } else {
-      console.log(`👤 USER Detected: ${userData.display_name}`);
-      return res.json({
-        success: true,
-        userRole: "user",
-        displayName: userData.display_name,
-        phoneNumber: userData.phone_number,
-        email: userData.email,
-        points: userData.points,
-        registeredAt: userData.registered_at,
-        message: "Welcome Back!",
-        richMenu: "user_menu_id",
-      });
     }
+
+    // 👤 USER
+    console.log(`👤 USER Detected: ${userData.display_name}`);
+    return res.json({
+      ...baseProfile,
+      message: "Welcome Back!",
+      richMenu: "user_menu_id",
+    });
   } catch (error) {
     console.error("❌ Get user error:", error);
     res.status(500).json({
