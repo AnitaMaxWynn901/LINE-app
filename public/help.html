@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Help Center</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      min-height: 100vh;
+      padding-bottom: 40px;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 28px 20px;
+      text-align: center;
+      border-bottom-left-radius: 22px;
+      border-bottom-right-radius: 22px;
+    }
+    .header h1 { font-size: 22px; margin-bottom: 6px; }
+    .header p { font-size: 14px; opacity: 0.9; }
+    .container {
+      padding: 20px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    .section {
+      background: white;
+      border-radius: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .section-header {
+      padding: 16px 18px;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-header span { font-size: 18px; }
+    .section-content {
+      padding: 0 18px 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      display: none;
+      color: #555;
+    }
+    .section-content ul {
+      padding-left: 18px;
+      margin-top: 8px;
+    }
+    .section-content li { margin-bottom: 6px; }
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: #777;
+      margin-top: 30px;
+    }
+    @media (min-width: 768px) {
+      .header h1 { font-size: 24px; }
+      .section-header { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>❓ Help Center</h1>
+    <p>Everything you need to use Sushi Cafe</p>
+  </div>
+
+  <div class="container">
+
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">🍣 Getting Started <span>+</span></div>
+      <div class="section-content">
+        <ul>
+          <li>Add Sushi Cafe as a friend on LINE</li>
+          <li>Tap <strong>Register</strong> and fill in your details</li>
+          <li>Use the <strong>Menu</strong> to start ordering</li>
+          <li>Earn points automatically when you order</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">🛒 How to Order <span>+</span></div>
+      <div class="section-content">
+        <ul>
+          <li>Open the Menu from the Rich Menu</li>
+          <li>Select your sushi items</li>
+          <li>Confirm your order</li>
+          <li>Wait for the shop to prepare your order</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">💎 Points & Rewards <span>+</span></div>
+      <div class="section-content">
+        <ul>
+          <li>You earn <strong>1 point for every $10 spent</strong></li>
+          <li>Check your points in <strong>My Points</strong></li>
+          <li>Points update after order completion</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">👤 My Profile <span>+</span></div>
+      <div class="section-content">
+        <ul>
+          <li>View your phone number and email</li>
+          <li>Check your role and points</li>
+          <li>Keep your information up to date</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header" onclick="toggle(this)">❓ Common Questions <span>+</span></div>
+      <div class="section-content">
+        <ul>
+          <li><strong>I don’t see the menu</strong> – Try reopening the chat</li>
+          <li><strong>Points not updated</strong> – Only completed orders count</li>
+          <li><strong>Order not confirmed</strong> – Please wait a moment</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer">
+      Need more help? Use the <strong>Contact</strong> button in the menu.
+    </div>
+
+  </div>
+
+<script>
+  const LIFF_ID = "2008995030-skHhHuZ3";
+
+  async function initLIFF() {
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) liff.login();
+    } catch (e) {
+      console.error("LIFF init failed", e);
+    }
+  }
+
+  function toggle(header) {
+    const content = header.nextElementSibling;
+    const symbol = header.querySelector("span");
+    const isOpen = content.style.display === "block";
+
+    document.querySelectorAll(".section-content").forEach(c => c.style.display = "none");
+    document.querySelectorAll(".section-header span").forEach(s => s.textContent = "+");
+
+    if (!isOpen) {
+      content.style.display = "block";
+      symbol.textContent = "−";
+    }
+  }
+
+  window.addEventListener("load", initLIFF);
+</script>
+
+</body>
+</html>
