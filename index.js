@@ -388,7 +388,7 @@ app.post("/api/register-admin", async (req, res) => {
       throw insertError;
     }
 
-    // 🔥 AUTO-LINK Rich Menu based on role
+      // 🔥 AUTO-LINK Rich Menu based on role
     await linkRichMenu(newUser.line_uid, newUser.user_role);
 
     console.log(`✅ ${userRole} registered + Rich Menu linked`);
@@ -923,8 +923,6 @@ app.put("/api/admin/users/:lineUid/role", async (req, res) => {
     }
 
     console.log(`✅ User ${lineUid} role changed to: ${role}`);
-    
-    await switchRichMenu(lineUid, role);
 
     res.json({
       success: true,
